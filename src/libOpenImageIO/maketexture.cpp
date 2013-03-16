@@ -313,7 +313,7 @@ resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shif
     
     DASSERT(dst.spec().width == roi.width());           // Full width ROI
     DASSERT(roi.xbegin == 0 && roi.xend == roi.width());// Not inset
-    DASSERT(dst.spec().width == src.spec().width / 2);  // Src is 2x
+    DASSERT(dst.spec().width == src.spec().width / 2 || src.spec().width == 1);
     DASSERT(src.spec().format == dst.spec().format);    // Same formats
     DASSERT(src.nchannels() == dst.nchannels());        // Same channels
     DASSERT(roi.ybegin + roi.height() <= dst.spec().height);
