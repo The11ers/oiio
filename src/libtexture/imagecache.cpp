@@ -1072,8 +1072,8 @@ ImageCacheImpl::clear_fingerprints ()
 void
 ImageCacheImpl::check_max_files (ImageCachePerThreadInfo *thread_info)
 {
-    DASSERT (m_filemutex_holder == thread_info &&
-             "check_max_files should only be called by file lock holder");
+//    DASSERT (m_filemutex_holder == thread_info &&
+//             "check_max_files should only be called by file lock holder");
 #if 0
     if (! (m_stat_open_files_created % 16) || m_stat_open_files_current >= m_max_open_files) {
         std::cerr << "open files " << m_stat_open_files_current << ", max = " << m_max_open_files << "\n";
@@ -1921,10 +1921,10 @@ ImageCacheImpl::add_tile_to_cache (ImageCacheTileRef &tile,
             check_max_mem (thread_info);
             safe_insert (m_tilecache, tile->id(), tile, m_tile_sweep);
         }
-        DASSERT (tilemutex_holder() == thread_info); // better still be us
+//        DASSERT (tilemutex_holder() == thread_info); // better still be us
         tilemutex_holder (NULL);
     }
-    DASSERT (m_tilemutex_holder != thread_info); // shouldn't hold
+//    DASSERT (m_tilemutex_holder != thread_info); // shouldn't hold
 
     // At this point, we no longer have the write lock, and we are no
     // longer modifying the cache itself.  However, if we added a new
@@ -1950,8 +1950,8 @@ ImageCacheImpl::add_tile_to_cache (ImageCacheTileRef &tile,
 void
 ImageCacheImpl::check_max_mem (ImageCachePerThreadInfo *thread_info)
 {
-    DASSERT (m_tilemutex_holder == thread_info &&
-             "check_max_mem should only be called by tile lock holder");
+//    DASSERT (m_tilemutex_holder == thread_info &&
+//             "check_max_mem should only be called by tile lock holder");
     DASSERT (m_mem_used < (long long)m_max_memory_bytes*10); // sanity
 #if 0
     static atomic_int n;
