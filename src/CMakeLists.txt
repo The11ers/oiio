@@ -21,8 +21,12 @@ if (NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE "Release") 
 endif ()
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions ("-DDEBUG=1")
     set (DEBUGMODE ON)
+endif ()
+if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    # cmake bug workaround -- on some platforms, cmake doesn't set
+    # NDEBUG for RelWithDebInfo mode
+    add_definitions ("-DNDEBUG")
 endif ()
 
 

@@ -293,8 +293,8 @@ static void
 halve_scanline(const SRCTYPE *s, const int nchannels, size_t sw, float *dst)
 {
     for (size_t i = 0; i < sw; i += 2, s += nchannels) {
-        for (size_t j = 0; j < nchannels; ++j, ++dst, ++s)
-            *dst = 0.5 * (*s + *(s + nchannels));
+        for (int j = 0; j < nchannels; ++j, ++dst, ++s)
+            *dst = 0.5f * (*s + *(s + nchannels));
     }
 }
 
@@ -311,11 +311,6 @@ resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shif
     if (!allow_shift && (src.spec().width % 2 || src.spec().height % 2))
         return resize_block_<SRCTYPE>(dst, src, roi, false);
     
-    DASSERT(dst.spec().width == roi.width());           // Full width ROI
-    DASSERT(roi.xbegin == 0 && roi.xend == roi.width());// Not inset
-    DASSERT(dst.spec().width == src.spec().width / 2 || src.spec().width == 1);
-    DASSERT(src.spec().format == dst.spec().format);    // Same formats
-    DASSERT(src.nchannels() == dst.nchannels());        // Same channels
     DASSERT(roi.ybegin + roi.height() <= dst.spec().height);
 
     // Allocate two scanline buffers to hold the result of the first pass
@@ -344,8 +339,8 @@ resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shif
         s += ystride;
         const float *s0 = &S0[0], *s1 = &S1[0];
         for (size_t x = 0; x < dw; ++x) {               // For each dst ROI col
-            for (size_t i = 0; i < nchannels; ++i, ++s0, ++s1, ++d)
-                *d = 0.5 * (*s0 + *s1);                 // Average vertically
+            for (int i = 0; i < nchannels; ++i, ++s0, ++s1, ++d)
+                *d = 0.5f * (*s0 + *s1);                 // Average vertically
         }
     }
     
@@ -358,14 +353,27 @@ static bool
 resize_block (ImageBuf &dst, const ImageBuf &src, ROI roi, bool envlatlmode,
               bool allow_shift)
 {
-  if (!envlatlmode) {
-      OIIO_DISPATCH_TYPES("resize_block_2pass", resize_block_2pass,
-                          src.spec().format, dst, src, roi, allow_shift);
-  }
-  
-  ASSERT (dst.spec().format == TypeDesc::TypeFloat);
-  OIIO_DISPATCH_TYPES ("resize_block", resize_block_, src.spec().format,
-                       dst, src, roi, envlatlmode);
+    const ImageSpec &srcspec (src.spec());
+    const ImageSpec &dstspec (dst.spec());
+    DASSERT (dstspec.nchannels == srcspec.nchannels);
+    DASSERT (dst.localpixels());
+    if (src.localpixels() &&                      // Not a cached image
+        !envlatlmode &&                           // not latlong wrap mode
+        roi.xbegin == 0 &&                        // Region x at origin
+        dstspec.width == roi.width() &&           // Full width ROI
+        dstspec.width == (srcspec.width / 2) &&   // Src is 2x resize
+        dstspec.format == srcspec.format &&       // Same formats
+        dstspec.x == 0 && dstspec.y == 0 &&       // Not a crop or overscan
+        srcspec.x == 0 && srcspec.y == 0) {
+        // If all these conditions are met, we have a special case that
+        // can be more highly optimized.
+        OIIO_DISPATCH_TYPES("resize_block_2pass", resize_block_2pass,
+                            srcspec.format, dst, src, roi, allow_shift);
+    }
+
+    ASSERT (dst.spec().format == TypeDesc::TypeFloat);
+    OIIO_DISPATCH_TYPES ("resize_block", resize_block_, srcspec.format,
+                         dst, src, roi, envlatlmode);
 }
 
 
@@ -549,6 +557,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         std::string mipimages_unsplit = configspec.get_string_attribute ("maketx:mipimages");
         if (mipimages_unsplit.length())
             Strutil::split (mipimages_unsplit, mipimages, ";");
+        bool allow_shift = configspec.get_int_attribute("maketx:allow_pixel_shift");
         
         boost::shared_ptr<ImageBuf> small (new ImageBuf);
         while (outspec.width > 1 || outspec.height > 1) {
@@ -584,7 +593,6 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                 smallspec.full_width = smallspec.width;
                 smallspec.full_height = smallspec.height;
                 smallspec.full_depth = smallspec.depth;
-                bool allow_shift = configspec.get_int_attribute("maketx:allow_pixel_shift");
                 if (!allow_shift ||
                     configspec.get_int_attribute("maketx:forcefloat", 1))
                     smallspec.set_format (TypeDesc::FLOAT);
@@ -737,6 +745,7 @@ make_texture_impl (ImageBufAlgo::MakeTextureMode mode,
     // When was the input file last modified?
     // This is only used when we're reading from a filename
     std::time_t in_time;
+    time (&in_time);  // make it look initialized
     bool updatemode = configspec.get_int_attribute ("maketx:updatemode");
     if (from_filename) {
         // When in update mode, skip making the texture if the output
@@ -790,7 +799,7 @@ make_texture_impl (ImageBufAlgo::MakeTextureMode mode,
     // allow the ImageBuf to use ImageCache to manage memory.
     int local_mb_thresh = configspec.get_int_attribute("maketx:read_local_MB",
                                                     1024);
-    bool read_local = (src->spec().image_bytes() < local_mb_thresh * 1024*1024);
+    bool read_local = (src->spec().image_bytes() < imagesize_t(local_mb_thresh * 1024*1024));
 
     bool verbose = configspec.get_int_attribute ("maketx:verbose");
     double misc_time_1 = alltime.lap();
