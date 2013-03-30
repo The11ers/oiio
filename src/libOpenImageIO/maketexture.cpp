@@ -361,7 +361,8 @@ resize_block (ImageBuf &dst, const ImageBuf &src, ROI roi, bool envlatlmode,
         !envlatlmode &&                           // not latlong wrap mode
         roi.xbegin == 0 &&                        // Region x at origin
         dstspec.width == roi.width() &&           // Full width ROI
-        dstspec.width == (srcspec.width / 2) &&   // Src is 2x resize
+        (dstspec.width == 1 ||                    // Width at min or
+         dstspec.width == (srcspec.width / 2)) && // Src is 2x resize
         dstspec.format == srcspec.format &&       // Same formats
         dstspec.x == 0 && dstspec.y == 0 &&       // Not a crop or overscan
         srcspec.x == 0 && srcspec.y == 0) {
