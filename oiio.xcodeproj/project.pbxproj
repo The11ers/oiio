@@ -1129,6 +1129,7 @@
 					"USE_TBB=0",
 					"$(inherited)",
 				);
+				GCC_UNROLL_LOOPS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				HEADER_SEARCH_PATHS = (
 					OpenEXR,
@@ -1137,6 +1138,7 @@
 					src/include,
 					"libpng-1.5.13",
 				);
+				OTHER_CFLAGS = "-DNDEBUG";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-v",
@@ -1157,12 +1159,15 @@
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
 				);
+				GCC_OPTIMIZATION_LEVEL = 3;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"EMBED_PLUGINS=1",
 					"USE_TBB=0",
+					NDEBUG,
 				);
+				GCC_UNROLL_LOOPS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				HEADER_SEARCH_PATHS = (
 					OpenEXR,
@@ -1171,6 +1176,7 @@
 					src/include,
 					"libpng-1.5.13",
 				);
+				OTHER_CFLAGS = "-DNDEBUG";
 				OTHER_LDFLAGS = (
 					"-ObjC",
 					"-v",
