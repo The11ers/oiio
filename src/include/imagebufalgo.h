@@ -597,7 +597,9 @@ bool OIIO_API make_texture (MakeTextureMode mode,
                             const std::string &filename,
                             const std::string &outputfilename,
                             const ImageSpec &config,
-                            std::ostream *outstream = NULL);
+                            std::ostream *outstream = NULL,
+                            bool (*progress)(float pct, void *data) = NULL,
+                            void *progress_data = NULL);
 
 /// Version of make_texture that takes multiple filenames (reserved for
 /// future expansion, such as assembling several faces into a cube map).
@@ -605,7 +607,9 @@ bool OIIO_API make_texture (MakeTextureMode mode,
                             const std::vector<std::string> &filenames,
                             const std::string &outputfilename,
                             const ImageSpec &config,
-                            std::ostream *outstream = NULL);
+                            std::ostream *outstream = NULL,
+                            bool (*progress)(float pct, void *data) = NULL,
+                            void *progress_data = NULL);
 
 /// Version of make_texture that starts with an ImageBuf, rather than
 /// reading the input image from disk.
@@ -613,7 +617,9 @@ bool OIIO_API make_texture (MakeTextureMode mode,
                             const ImageBuf &input,
                             const std::string &outputfilename,
                             const ImageSpec &config,
-                            std::ostream *outstream = NULL);
+                            std::ostream *outstream = NULL,
+                            bool (*progress)(float pct, void *data) = NULL,
+                            void *progress_data = NULL);
 
 
 

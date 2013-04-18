@@ -493,8 +493,12 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
               Filter2D *filter, const ImageSpec &configspec,
               std::ostream &outstream,
               double &stat_writetime, double &stat_miptime,
-              size_t &peak_mem)
+              size_t &peak_mem,
+              bool (*progress)(float pct, void *data), void *progress_data)
 {
+    const float pct_start = 0.05, pct_end = 0.95;
+    if (progress)
+        (*progress)(pct_start, progress_data);
     bool envlatlmode = (mode == ImageBufAlgo::MakeTxEnvLatl);
 
     ImageSpec outspec = outspec_template;
@@ -559,7 +563,8 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         if (mipimages_unsplit.length())
             Strutil::split (mipimages_unsplit, mipimages, ";");
         bool allow_shift = configspec.get_int_attribute("maketx:allow_pixel_shift");
-        
+        float pct_done = 0.1;
+      
         boost::shared_ptr<ImageBuf> small (new ImageBuf);
         while (outspec.width > 1 || outspec.height > 1) {
             Timer miptimer;
@@ -628,6 +633,13 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
             if (envlatlmode && src_samples_border)
                 fix_latl_edges (*small);
 
+            float level_pct = 0.75 * (pct_end - pct_done);
+            pct_done += 0.5 * level_pct;
+            if (progress) {
+                if (!(*progress)(pct_done, progress_data))
+                    return false;
+            }
+          
             Timer writetimer;
             // If the format explicitly supports MIP-maps, use that,
             // otherwise try to simulate MIP-mapping with multi-image.
@@ -655,6 +667,11 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                                               Strutil::memformat(mem))
                           << std::endl;
             }
+            pct_done += 0.5 * level_pct;
+            if (progress) {
+                if (!(*progress)(pct_done, progress_data))
+                    return false;
+            }
             std::swap (img, small);
         }
     }
@@ -670,6 +687,9 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         return false;
     }
     stat_writetime += writetimer ();
+  
+    if (progress)
+        (*progress)(pct_end, progress_data);
     return true;
 }
 
@@ -681,7 +701,8 @@ make_texture_impl (ImageBufAlgo::MakeTextureMode mode,
                    const std::string filename,
                    std::string outputfilename,
                    const ImageSpec &_configspec,
-                   std::ostream *outstream_ptr)
+                   std::ostream *outstream_ptr,
+                   bool (*progress)(float pct, void *data), void *progress_data)
 {
     ASSERT (mode >= 0 && mode < ImageBufAlgo::_MakeTxLast);
     double stat_readtime = 0;
@@ -691,6 +712,9 @@ make_texture_impl (ImageBufAlgo::MakeTextureMode mode,
     double stat_colorconverttime = 0;
     size_t peak_mem = 0;
     Timer alltime;
+  
+    if (progress)
+        (*progress)(0.01, progress_data);
 
 #define STATUS(task,timer)                                              \
     {                                                                   \
@@ -1291,7 +1315,8 @@ make_texture_impl (ImageBufAlgo::MakeTextureMode mode,
     bool ok = write_mipmap (mode, toplevel, dstspec, outputfilename,
                             out, out_dataformat, !shadowmode && !nomipmap,
                             filter, configspec, outstream,
-                            stat_writetime, stat_miptime, peak_mem);
+                            stat_writetime, stat_miptime, peak_mem,
+                            progress, progress_data);
     delete out;  // don't need it any more
 
     // If using update mode, stamp the output file with a modification time
@@ -1319,6 +1344,10 @@ make_texture_impl (ImageBufAlgo::MakeTextureMode mode,
     }
 
 #undef STATUS
+  
+    if (progress)
+        (*progress)(1, progress_data);
+
     return ok;
 }
 
@@ -1329,10 +1358,12 @@ ImageBufAlgo::make_texture (ImageBufAlgo::MakeTextureMode mode,
                             const std::string &filename,
                             const std::string &outputfilename,
                             const ImageSpec &configspec,
-                            std::ostream *outstream)
+                            std::ostream *outstream,
+                            bool (*progress)(float pct, void *data),
+                            void *progress_data)
 {
     return make_texture_impl (mode, NULL, filename, outputfilename,
-                              configspec, outstream);
+                              configspec, outstream, progress, progress_data);
 }
 
 
@@ -1342,10 +1373,12 @@ ImageBufAlgo::make_texture (ImageBufAlgo::MakeTextureMode mode,
                             const std::vector<std::string> &filenames,
                             const std::string &outputfilename,
                             const ImageSpec &configspec,
-                            std::ostream *outstream_ptr)
+                            std::ostream *outstream_ptr,
+                            bool (*progress)(float pct, void *data),
+                            void *progress_data)
 {
     return make_texture_impl (mode, NULL, filenames[0], outputfilename,
-                              configspec, outstream_ptr);
+                              configspec, outstream_ptr, progress, progress_data);
 }
 
 
@@ -1355,8 +1388,10 @@ ImageBufAlgo::make_texture (ImageBufAlgo::MakeTextureMode mode,
                             const ImageBuf &input,
                             const std::string &outputfilename,
                             const ImageSpec &configspec,
-                            std::ostream *outstream)
+                            std::ostream *outstream,
+                            bool (*progress)(float pct, void *data),
+                            void *progress_data)
 {
     return make_texture_impl (mode, &input, "", outputfilename,
-                              configspec, outstream);
+                              configspec, outstream, progress, progress_data);
 }
