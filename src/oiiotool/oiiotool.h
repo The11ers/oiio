@@ -33,6 +33,7 @@
 
 #include "imagebuf.h"
 #include "refcnt.h"
+#include "timer.h"
 
 
 OIIO_NAMESPACE_ENTER {
@@ -49,6 +50,7 @@ class Oiiotool {
 public:
     // General options
     bool verbose;
+    bool runstats;
     bool noclobber;
     bool allsubimages;
     bool printinfo;
@@ -85,6 +87,12 @@ public:
     ImageCache *imagecache;                  // back ptr to ImageCache
     int return_value;                        // oiiotool command return code
     ColorConfig colorconfig;                 // OCIO color config
+    Timer total_readtime;
+    Timer total_writetime;
+    double total_imagecache_readtime;
+    typedef std::map<std::string, float> TimingMap;
+    TimingMap function_times;
+    bool enable_function_timing;
 
     Oiiotool ();
 
@@ -132,7 +140,7 @@ public:
 
     ImageRecRef top () { return curimg; }
 
-    void error (const std::string &command, const std::string &explanation);
+    void error (const std::string &command, const std::string &explanation="");
 
 private:
     CallbackFunction m_pending_callback;
@@ -205,6 +213,19 @@ public:
     // If spec == NULL, the IB's will not be fully allocated/initialized.
     ImageRec (const std::string &name, int nsubimages,
               const int *miplevels, const ImageSpec *specs=NULL);
+
+    enum WinMerge { WinMergeUnion, WinMergeIntersection, WinMergeA, WinMergeB };
+
+    // Initialize a new ImageRec based on two exemplars.  Initialize
+    // just the single subimage_to_copy if >= 0, or all subimages if <0.
+    // The two WinMerge parameters pixwin and fullwin, dictate the
+    // policy for setting up the pixel data and full (display) windows,
+    // respectively.  If pixeltype not UNKNOWN, use that rather than
+    // A's pixel type (the default behavior).
+    ImageRec (ImageRec &imgA, ImageRec &imgB, int subimage_to_copy = -1,
+              WinMerge pixwin = WinMergeUnion,
+              WinMerge fullwin = WinMergeUnion,
+              TypeDesc pixeltype = TypeDesc::UNKNOWN);
 
     // Number of subimages
     int subimages() const { return (int) m_subimages.size(); }

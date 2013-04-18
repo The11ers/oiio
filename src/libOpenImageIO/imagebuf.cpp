@@ -43,6 +43,7 @@
 #include "imageio.h"
 #include "imagebuf.h"
 #include "imagebufalgo.h"
+#include "imagebufalgo_util.h"
 #include "imagecache.h"
 #include "dassert.h"
 #include "strutil.h"
@@ -626,6 +627,11 @@ ImageBufImpl::read (int subimage, int miplevel, bool force, TypeDesc convert,
         std::cerr << "going to have to read " << m_name << ": "
                   << m_spec.format.c_str() << " vs " << convert.c_str() << "\n";
 #endif
+        // FIXME/N.B. - is it really best to go through the ImageCache
+        // for forced IB reads?  Are there circumstances in which we
+        // should just to a straight read_image() to avoid the extra
+        // copies or the memory use of having bytes both in the cache
+        // and in the IB?
     }
 
     if (convert != TypeDesc::UNKNOWN)
@@ -1063,7 +1069,7 @@ interppixel_ (const ImageBuf &img, float x, float y, float *pixel,
               ImageBuf::WrapMode wrap)
 {
     int n = img.spec().nchannels;
-    float *localpixel = ALLOCA (float, n);
+    float *localpixel = ALLOCA (float, n*4);
     float *p[4] = { localpixel, localpixel+n, localpixel+2*n, localpixel+3*n };
     x -= 0.5f;
     y -= 0.5f;
