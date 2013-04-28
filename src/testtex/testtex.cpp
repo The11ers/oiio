@@ -97,7 +97,9 @@ static bool resetstats = false;
 static bool testhash = false;
 static bool wedge = false;
 static int ntrials = 1;
+static bool testicwrite = false;
 static Imath::M33f xform;
+static ImageCache::TexelGenerator null_texture_generator; // does nothing
 void *dummyptr;
 
 typedef void (*Mapping2D)(int,int,float&,float&,float&,float&,float&,float&);
@@ -169,6 +171,7 @@ getargs (int argc, const char *argv[])
                   "--threadtimes %d", &threadtimes, "Do thread timings (arg = workload profile)",
                   "--trials %d", &ntrials, "Number of trials for timings",
                   "--wedge", &wedge, "Wedge test",
+                  "--testicwrite", &testicwrite, "Test ImageCache write ability",
                   NULL);
     if (ap.parse (argc, argv) < 0) {
         std::cerr << ap.geterror() << std::endl;
@@ -890,6 +893,52 @@ launch_tex_threads (int numthreads, int iterations)
 
 
 
+void
+test_icwrite ()
+{
+    std::cout << "Testing IC write\n";
+
+    // The global "shared" ImageCache will be the same one the
+    // TextureSystem uses.
+    ImageCache *ic = ImageCache::create ();
+
+    // Set up the fake file ane add it
+    int tw = 64, th = 64;  // tile width and height
+    int nc = 3;  // channels
+    ImageSpec spec (256, 256, nc, TypeDesc::FLOAT);
+    spec.depth = 1;
+    spec.tile_width = tw;
+    spec.tile_height = th;
+    spec.tile_depth = 1;
+    ustring filename (filenames[0]);
+    bool ok = ic->add_file (filename, false, spec, &null_texture_generator);
+    if (! ok)
+        std::cout << "ic->add_file error: " << ic->geterror() << "\n";
+    ASSERT (ok);
+
+    // Now add all the tiles
+    std::vector<float> tile (spec.tile_pixels() * spec.nchannels);
+    for (int ty = 0;  ty < spec.height;  ty += th) {
+        for (int tx = 0;  tx < spec.width;  tx += tw) {
+            // Construct a tile
+            for (int y = 0; y < th; ++y)
+                for (int x = 0; x < tw; ++x) {
+                    int index = (y*tw + x) * nc;
+                    int xx = x+tx, yy = y+ty;
+                    tile[index+0] = float(xx)/spec.width;
+                    tile[index+1] = float(yy)/spec.height;
+                    tile[index+2] = (!(xx%10) || !(yy%10)) ? 1.0f : 0.0f;
+                }
+            bool ok = ic->add_tile (filename, 0, 0, tx, ty, 0, TypeDesc::FLOAT, &tile[0]);
+            if (! ok)
+                std::cout << "ic->add_tile error: " << ic->geterror() << "\n";
+            ASSERT (ok);
+        }
+    }
+}
+
+
+
 int
 main (int argc, const char *argv[])
 {
@@ -932,6 +981,10 @@ main (int argc, const char *argv[])
             dummyptr = &copy;  // This forces the optimizer to keep the loop
         }
         std::cout << "TextureOpt memcpy: " << t() << " ns\n";
+    }
+
+    if (testicwrite && filenames.size()) {
+        test_icwrite ();
     }
 
     if (test_getimagespec) {
@@ -1012,7 +1065,7 @@ main (int argc, const char *argv[])
         }
         test_getimagespec_gettexels (filename);
     }
-    
+
     std::cout << "Memory use: "
               << Strutil::memformat (Sysutil::memory_used(true)) << "\n";
     TextureSystem::destroy (texsys);

@@ -227,6 +227,40 @@ public:
     /// the data type of the pixels in the disk file).
     virtual const void * tile_pixels (Tile *tile, TypeDesc &format) const = 0;
 
+    /// Base class for a functor that will generate a slab of texels (or
+    /// return false if it cannot do so).
+    class TexelGenerator {
+    public:
+        TexelGenerator () { }
+        virtual ~TexelGenerator () { }
+        virtual bool operator() (ustring name, int subimage, int miplevel,
+                                 const ImageSpec &spec,
+                                 int xbegin, int xend, int ybegin, int yend,
+                                 int zbegin, int zend, int chbegin, int chend,
+                                 float *buffer) { return false; }
+    };
+
+    /// This is used to allow the ImageCache to be used for writable
+    /// images.  If a cache entry doesn't already doesn't exist for the
+    /// given filename, add it with the supplied image spec and a pointer
+    /// to a TexelGenerator object that can be called to generate image
+    /// tiles as needed.  The generator continues to be owned by the 
+    /// caller, who is responsible for destroying it (but only after the
+    /// ImageCache is destroyed).
+    virtual bool add_file (ustring filename, bool mipped,
+                           const ImageSpec &spec,
+                           TexelGenerator *generator) = 0;
+
+    /// Preemptively add a tile corresponding to the named image, at the
+    /// given subimage and MIP level.  The tile added is the one whose
+    /// corner is (x,y,z), and buffer points to the pixels (in the given
+    /// format, with supplied strides) which will be copied and inserted
+    /// into the cache and made available for future lookups.
+    virtual bool add_tile (ustring filename, int subimage, int miplevel,
+                     int x, int y, int z, TypeDesc format, const void *buffer,
+                     stride_t xstride=AutoStride, stride_t ystride=AutoStride,
+                     stride_t zstride=AutoStride) = 0;
+
     /// If any of the API routines returned false indicating an error,
     /// this routine will return the error string (and clear any error
     /// flags).  If no error has occurred since the last time geterror()
