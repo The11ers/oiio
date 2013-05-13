@@ -347,8 +347,14 @@ public:
     /// format the value nicely as a string.  If 'human' is true, use
     /// especially human-readable explanations (units, or decoding of
     /// values) for certain known metadata.
+    static std::string attribute_value_string (const ImageIOParameter &p,
+                                               bool human=false);
+
+    /// DEPRECATED - Now a static
     std::string metadata_val (const ImageIOParameter &p,
-                              bool human=false) const;
+                              bool human=false) const {
+        return attribute_value_string(p, human);
+    }
 
     /// Convert ImageSpec class into XML string.
     ///

@@ -119,6 +119,9 @@
 		CA24E88D1627443400BD9ED3 /* jquant1.c in Sources */ = {isa = PBXBuildFile; fileRef = CA24E88B1627443400BD9ED3 /* jquant1.c */; };
 		CA24E88E1627443400BD9ED3 /* jquant2.c in Sources */ = {isa = PBXBuildFile; fileRef = CA24E88C1627443400BD9ED3 /* jquant2.c */; };
 		CA2E4B1C16E6A879003D463D /* maketexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA2E4B1B16E6A879003D463D /* maketexture.cpp */; };
+		CA3318EC173D4D1000CA8E97 /* imagebufalgo_compare.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA3318E8173D4D0F00CA8E97 /* imagebufalgo_compare.cpp */; };
+		CA3318ED173D4D1000CA8E97 /* imagebufalgo_copy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA3318E9173D4D0F00CA8E97 /* imagebufalgo_copy.cpp */; };
+		CA3318EE173D4D1000CA8E97 /* imagebufalgo_pixelmath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA3318EA173D4D0F00CA8E97 /* imagebufalgo_pixelmath.cpp */; };
 		CA38AA431625E9DE0055AF8E /* color_ocio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA1B1625E9DD0055AF8E /* color_ocio.cpp */; };
 		CA38AA441625E9DE0055AF8E /* exif.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA1C1625E9DD0055AF8E /* exif.cpp */; };
 		CA38AA451625E9DE0055AF8E /* filesystem_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA1D1625E9DD0055AF8E /* filesystem_test.cpp */; };
@@ -126,7 +129,6 @@
 		CA38AA481625E9DE0055AF8E /* imagebuf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA201625E9DD0055AF8E /* imagebuf.cpp */; };
 		CA38AA491625E9DE0055AF8E /* imagebufalgo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA211625E9DD0055AF8E /* imagebufalgo.cpp */; };
 		CA38AA4A1625E9DE0055AF8E /* imagebufalgo_opencv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA221625E9DD0055AF8E /* imagebufalgo_opencv.cpp */; };
-		CA38AA4B1625E9DE0055AF8E /* imagebufalgo_orient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA231625E9DD0055AF8E /* imagebufalgo_orient.cpp */; };
 		CA38AA4C1625E9DE0055AF8E /* imagebufalgo_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA241625E9DD0055AF8E /* imagebufalgo_test.cpp */; };
 		CA38AA4D1625E9DE0055AF8E /* imagebufalgo_yee.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA251625E9DD0055AF8E /* imagebufalgo_yee.cpp */; };
 		CA38AA4E1625E9DE0055AF8E /* imageinput.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA38AA261625E9DD0055AF8E /* imageinput.cpp */; };
@@ -347,6 +349,11 @@
 		CA24E88B1627443400BD9ED3 /* jquant1.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = jquant1.c; path = "jpeg-8d/jquant1.c"; sourceTree = "<group>"; };
 		CA24E88C1627443400BD9ED3 /* jquant2.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = jquant2.c; path = "jpeg-8d/jquant2.c"; sourceTree = "<group>"; };
 		CA2E4B1B16E6A879003D463D /* maketexture.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = maketexture.cpp; sourceTree = "<group>"; };
+		CA3318E8173D4D0F00CA8E97 /* imagebufalgo_compare.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_compare.cpp; sourceTree = "<group>"; };
+		CA3318E9173D4D0F00CA8E97 /* imagebufalgo_copy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_copy.cpp; sourceTree = "<group>"; };
+		CA3318EA173D4D0F00CA8E97 /* imagebufalgo_pixelmath.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_pixelmath.cpp; sourceTree = "<group>"; };
+		CA3318EB173D4D1000CA8E97 /* kissfft.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = kissfft.hh; sourceTree = "<group>"; };
+		CA3318EF173D4D2C00CA8E97 /* imagebufalgo_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imagebufalgo_util.h; sourceTree = "<group>"; };
 		CA38A8EC1625E79D0055AF8E /* liboiio.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = liboiio.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA38A9DD1625E9C20055AF8E /* argparse.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = argparse.h; sourceTree = "<group>"; };
 		CA38A9E01625E9C20055AF8E /* color.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = color.h; sourceTree = "<group>"; };
@@ -409,7 +416,6 @@
 		CA38AA201625E9DD0055AF8E /* imagebuf.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebuf.cpp; sourceTree = "<group>"; };
 		CA38AA211625E9DD0055AF8E /* imagebufalgo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo.cpp; sourceTree = "<group>"; };
 		CA38AA221625E9DD0055AF8E /* imagebufalgo_opencv.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_opencv.cpp; sourceTree = "<group>"; };
-		CA38AA231625E9DD0055AF8E /* imagebufalgo_orient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_orient.cpp; sourceTree = "<group>"; };
 		CA38AA241625E9DD0055AF8E /* imagebufalgo_test.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_test.cpp; sourceTree = "<group>"; };
 		CA38AA251625E9DD0055AF8E /* imagebufalgo_yee.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imagebufalgo_yee.cpp; sourceTree = "<group>"; };
 		CA38AA261625E9DD0055AF8E /* imageinput.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imageinput.cpp; sourceTree = "<group>"; };
@@ -725,6 +731,7 @@
 		CA38A9DC1625E9C20055AF8E /* include */ = {
 			isa = PBXGroup;
 			children = (
+				CA3318EF173D4D2C00CA8E97 /* imagebufalgo_util.h */,
 				CA38AA671625EA680055AF8E /* version.h */,
 				CA38A9DD1625E9C20055AF8E /* argparse.h */,
 				CA38A9E01625E9C20055AF8E /* color.h */,
@@ -804,6 +811,10 @@
 		CA38AA181625E9DD0055AF8E /* libOpenImageIO */ = {
 			isa = PBXGroup;
 			children = (
+				CA3318E8173D4D0F00CA8E97 /* imagebufalgo_compare.cpp */,
+				CA3318E9173D4D0F00CA8E97 /* imagebufalgo_copy.cpp */,
+				CA3318EA173D4D0F00CA8E97 /* imagebufalgo_pixelmath.cpp */,
+				CA3318EB173D4D1000CA8E97 /* kissfft.hh */,
 				CA2E4B1B16E6A879003D463D /* maketexture.cpp */,
 				CA38AA1B1625E9DD0055AF8E /* color_ocio.cpp */,
 				CA38AA1C1625E9DD0055AF8E /* exif.cpp */,
@@ -812,7 +823,6 @@
 				CA38AA201625E9DD0055AF8E /* imagebuf.cpp */,
 				CA38AA211625E9DD0055AF8E /* imagebufalgo.cpp */,
 				CA38AA221625E9DD0055AF8E /* imagebufalgo_opencv.cpp */,
-				CA38AA231625E9DD0055AF8E /* imagebufalgo_orient.cpp */,
 				CA38AA241625E9DD0055AF8E /* imagebufalgo_test.cpp */,
 				CA38AA251625E9DD0055AF8E /* imagebufalgo_yee.cpp */,
 				CA38AA261625E9DD0055AF8E /* imageinput.cpp */,
@@ -923,7 +933,6 @@
 				CA38AA481625E9DE0055AF8E /* imagebuf.cpp in Sources */,
 				CA38AA491625E9DE0055AF8E /* imagebufalgo.cpp in Sources */,
 				CA38AA4A1625E9DE0055AF8E /* imagebufalgo_opencv.cpp in Sources */,
-				CA38AA4B1625E9DE0055AF8E /* imagebufalgo_orient.cpp in Sources */,
 				CA38AA4C1625E9DE0055AF8E /* imagebufalgo_test.cpp in Sources */,
 				CA38AA4D1625E9DE0055AF8E /* imagebufalgo_yee.cpp in Sources */,
 				CA38AA4E1625E9DE0055AF8E /* imageinput.cpp in Sources */,
@@ -1061,6 +1070,9 @@
 				CA4428DE163F011000900286 /* texture3d.cpp in Sources */,
 				CA4428DF163F011000900286 /* texturesys.cpp in Sources */,
 				CA2E4B1C16E6A879003D463D /* maketexture.cpp in Sources */,
+				CA3318EC173D4D1000CA8E97 /* imagebufalgo_compare.cpp in Sources */,
+				CA3318ED173D4D1000CA8E97 /* imagebufalgo_copy.cpp in Sources */,
+				CA3318EE173D4D1000CA8E97 /* imagebufalgo_pixelmath.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
