@@ -204,6 +204,7 @@ JpgOutput::open (const std::string &name, const ImageSpec &newspec,
     jpeg_write_marker (&m_cinfo, JPEG_APP0+1, (JOCTET*)&exif[0], exif.size());
 
     // Write IPTC IIM metadata tags, if we have anything
+#if 1   /*FIXME*/
     std::vector<char> iptc;
     encode_iptc_iim (m_spec, iptc);
     if (iptc.size()) {
@@ -222,13 +223,14 @@ JpgOutput::open (const std::string &name, const ImageSpec &newspec,
         iptc.insert (iptc.begin(), head.begin(), head.end());
         jpeg_write_marker (&m_cinfo, JPEG_APP0+13, (JOCTET*)&iptc[0], iptc.size());
     }
+#endif
 
     // Write XMP packet, if we have anything
     std::string xmp = encode_xmp (m_spec, true);
     if (! xmp.empty()) {
         static char prefix[] = "http://ns.adobe.com/xap/1.0/";
         std::vector<char> block (prefix, prefix+strlen(prefix)+1);
-        block.insert (block.end(), xmp.c_str(), xmp.c_str()+xmp.length()+1);
+        block.insert (block.end(), xmp.c_str(), xmp.c_str()+xmp.length());
         jpeg_write_marker (&m_cinfo, JPEG_APP0+1, (JOCTET*)&block[0], block.size());
     }
 

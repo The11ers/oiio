@@ -43,6 +43,8 @@
 #include <shellapi.h>
 #endif
 
+#include <sys/stat.h>
+
 #include "dassert.h"
 #include "ustring.h"
 
@@ -247,7 +249,15 @@ Filesystem::exists (const std::string &path)
 {
     bool r = false;
     try {
+#if 0
         r = boost::filesystem::exists (path);
+#else
+      // boost::filesystem::exists fails on iOS unless boost is compiled
+      // with some special flags, see:
+      // http://stackoverflow.com/questions/9100723/using-boostfilesysystem-path-from-framework-on-ios
+        struct stat buf;
+        r = !stat(path.c_str(), &buf);
+#endif
     } catch (const std::exception &e) {
         r = false;
     }

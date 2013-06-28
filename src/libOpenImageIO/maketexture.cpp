@@ -553,7 +553,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
               size_t &peak_mem,
               bool (*progress)(float pct, void *data), void *progress_data)
 {
-    const float pct_start = 0.05, pct_end = 0.95;
+    const float pct_start = 0.20, pct_end = 0.95;
     if (progress)
         (*progress)(pct_start, progress_data);
     bool envlatlmode = (mode == ImageBufAlgo::MakeTxEnvLatl);
