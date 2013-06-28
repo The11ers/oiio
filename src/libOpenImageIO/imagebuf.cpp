@@ -285,6 +285,13 @@ ImageBufImpl::~ImageBufImpl ()
 
 
 
+ImageBuf::ImageBuf ()
+    : m_impl (new ImageBufImpl (std::string(), NULL))
+{
+}
+
+
+
 ImageBuf::ImageBuf (const std::string &filename,
                     ImageCache *imagecache)
     : m_impl (new ImageBufImpl (filename, imagecache))
@@ -1301,7 +1308,7 @@ ImageBuf::deep_value (int x, int y, int z, int c, int s) const
     if (s >= nsamps)
         return 0.0f;
     const void *ptr = impl()->m_deepdata.pointers[p*m_spec.nchannels+c];
-    TypeDesc t = m_spec.channelformat(c);
+    TypeDesc t = impl()->m_deepdata.channeltypes[c];
     switch (t.basetype) {
     case TypeDesc::FLOAT :
         return ((const float *)ptr)[s];
@@ -1656,7 +1663,7 @@ ImageBufImpl::retile (int x, int y, int z, ImageCache::Tile* &tile,
                                        m_current_miplevel, x, y, z);
     }
 
-    size_t offset = ((z - tilezbegin) * th + (y - tileybegin)) * tw
+    size_t offset = ((z - tilezbegin) * (size_t) th + (y - tileybegin)) * (size_t) tw
                     + (x - tilexbegin);
     offset *= m_spec.pixel_bytes();
     DASSERTMSG (m_spec.pixel_bytes() == m_pixel_bytes,

@@ -64,6 +64,7 @@ public:
 
     // Output options
     TypeDesc output_dataformat;
+    std::map<std::string,std::string> output_channelformats;
     int output_bitspersample;
     bool output_scanline;
     int output_tilewidth, output_tileheight;
@@ -90,7 +91,7 @@ public:
     Timer total_readtime;
     Timer total_writetime;
     double total_imagecache_readtime;
-    typedef std::map<std::string, float> TimingMap;
+    typedef std::map<std::string, double> TimingMap;
     TimingMap function_times;
     bool enable_function_timing;
 

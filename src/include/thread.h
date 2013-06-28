@@ -198,11 +198,8 @@ private:
 
 typedef null_mutex mutex;
 typedef null_mutex recursive_mutex;
-typedef null_mutex shared_mutex;
 typedef null_lock<mutex> lock_guard;
 typedef null_lock<recursive_mutex> recursive_lock_guard;
-typedef null_lock<shared_mutex> shared_lock;
-typedef null_lock<shared_mutex> unique_lock;
 
 
 #else
@@ -211,11 +208,8 @@ typedef null_lock<shared_mutex> unique_lock;
 
 typedef boost::mutex mutex;
 typedef boost::recursive_mutex recursive_mutex;
-typedef boost::shared_mutex shared_mutex;
 typedef boost::lock_guard< boost::mutex > lock_guard;
 typedef boost::lock_guard< boost::recursive_mutex > recursive_lock_guard;
-typedef boost::shared_lock< boost::shared_mutex > shared_lock;
-typedef boost::unique_lock< boost::shared_mutex > unique_lock;
 using boost::thread_specific_ptr;
 
 #endif
@@ -326,10 +320,10 @@ pause (int delay)
 {
 #if defined(__GNUC__)
     for (int i = 0; i < delay; ++i) {
-#if defined __arm__
-      __asm__ __volatile__("NOP;");
+#if defined __arm__ || defined __s390__
+        __asm__ __volatile__("NOP;");
 #else
-      __asm__ __volatile__("pause;");
+        __asm__ __volatile__("pause;");
 #endif
     }
 #elif USE_TBB
@@ -446,6 +440,9 @@ public:
     }
 
 private:
+#ifdef __arm__
+    OIIO_ALIGN(8)
+#endif 
     volatile mutable T m_val;
 
     // Disallow copy construction by making private and unimplemented.

@@ -272,7 +272,7 @@ Filesystem::is_directory (const std::string &path)
     bool r = false;
     try {
         r = boost::filesystem::is_directory (path);
-    } catch (const std::exception &e) {
+    } catch (const std::exception &) {
         r = false;
     }
     return r;
@@ -287,7 +287,7 @@ Filesystem::is_regular (const std::string &path)
     bool r = false;
     try {
         r = boost::filesystem::is_regular_file (path);
-    } catch (const std::exception &e) {
+    } catch (const std::exception &) {
         r = false;
     }
     return r;
