@@ -345,12 +345,17 @@ Filesystem::open (std::ofstream &stream,
 std::time_t
 Filesystem::last_write_time (const std::string& path)
 {
+    try {
 #ifdef _WIN32
-    std::wstring wpath = Strutil::utf8_to_utf16 (path);
-    return boost::filesystem::last_write_time (wpath);
+        std::wstring wpath = Strutil::utf8_to_utf16 (path);
+        return boost::filesystem::last_write_time (wpath);
 #else
-    return boost::filesystem::last_write_time (path);
+        return boost::filesystem::last_write_time (path);
 #endif
+    } catch (const std::exception &) {
+        // File doesn't exist
+        return 0;
+    }
 }
 
 
@@ -358,12 +363,16 @@ Filesystem::last_write_time (const std::string& path)
 void
 Filesystem::last_write_time (const std::string& path, std::time_t time)
 {
+    try {
 #ifdef _WIN32
-    std::wstring wpath = Strutil::utf8_to_utf16 (path);
-    boost::filesystem::last_write_time (wpath, time);
+        std::wstring wpath = Strutil::utf8_to_utf16 (path);
+        boost::filesystem::last_write_time (wpath, time);
 #else
-    boost::filesystem::last_write_time (path, time);
+        boost::filesystem::last_write_time (path, time);
 #endif
+    } catch (const std::exception &) {
+        // File doesn't exist
+    }
 }
 
 
