@@ -542,7 +542,7 @@ maketx_merge_spec (ImageSpec &dstspec, const ImageSpec &srcspec)
 
 class MipmapGenerator : public ImageCache::TexelGenerator {
 public:
-    MipmapGenerator(ImageBuf &lvl0, ImageCache *imagecache)
+    MipmapGenerator(boost::shared_ptr<ImageBuf> &lvl0, ImageCache *imagecache)
         : m_lvl0(lvl0), m_imagecache(imagecache),
           m_envlatlmode(false), m_allow_shift(true) { ASSERT(m_imagecache); }
     
@@ -555,23 +555,23 @@ public:
         
         // Allocate a buffer to store the parent region we need to downsample
         size_t chcount = chend - chbegin;
-        size_t pelsize = m_lvl0.spec().format.size() * chcount;
+        size_t pelsize = m_lvl0->spec().format.size() * chcount;
         size_t pelcount = 4 * (xend - xbegin) * (yend - ybegin) * (zend - zbegin);
         size_t bytes = pelcount * pelsize;
         std::vector<unsigned char> pbuf (bytes);
         
         // Request the buffer from the image cache to access parent texels
-        const ustring pname = miplevel == 1 ? ustring(m_lvl0.name()) : name;
+        const ustring pname = miplevel == 1 ? ustring(m_lvl0->name()) : name;
         if (! m_imagecache->get_pixels(pname, subimage, miplevel-1,
                                        xbegin*2, xend*2, ybegin*2, yend*2,
                                        zbegin, zend, chbegin, chend,
-                                       m_lvl0.spec().format, &pbuf[0]))
+                                       m_lvl0->spec().format, &pbuf[0]))
             return false;
         
         // Wrap the child and parent buffers as ImageBufs for resizing.
         // FIXME: Handle edges of images, where tiles go outside boundary.
         ImageSpec cspec, pspec;
-        cspec = m_lvl0.spec();
+        cspec = m_lvl0->spec();
         cspec.width = xend - xbegin;
         cspec.height = yend - ybegin;
         cspec.depth = 1;
@@ -604,7 +604,7 @@ public:
     }
     
 private:
-    ImageBuf &m_lvl0;
+    boost::shared_ptr<ImageBuf> m_lvl0;
     ImageCache *m_imagecache;
     bool m_envlatlmode, m_allow_shift;
 };
@@ -695,13 +695,17 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                            img->imagecache() != NULL;
         float pct_done = 0.1;
 
-        boost::shared_ptr<ImageBuf> small (new ImageBuf);
-        MipmapGenerator *generator = new MipmapGenerator(*img, img->imagecache());  // FIXME: Leak!
+        // FIXME: Leaking the generator currently!
+        // Create a mipmap generator that must live as long as we use
+        // this file in the passed-in image cache. Use refcnt in ImageCacheFile?
+        MipmapGenerator *generator = new MipmapGenerator(img, img->imagecache());
         static const char *mipcache = "mipmap-cache";
         if (! img->imagecache()->add_file(OIIO::ustring(mipcache),
                                           true/*mipped*/,
                                           img->spec(), generator))
             return false;
+
+        boost::shared_ptr<ImageBuf> small (new ImageBuf);
         if (writable_ic)
             small->reset(mipcache, img->imagecache());
 
