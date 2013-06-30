@@ -607,9 +607,19 @@ ImageCacheFile::read_tile (ImageCachePerThreadInfo *thread_info,
                            int subimage, int miplevel, int x, int y, int z,
                            TypeDesc format, void *data)
 {
-    ASSERT (! m_generator);
     recursive_lock_guard guard (m_input_mutex);
 
+    if (m_generator) {
+        const ImageSpec &s(spec(subimage, miplevel));
+        const int xend = x + s.tile_width;
+        const int yend = y + s.tile_height;
+        const int zend = z + s.tile_depth;
+        if (!(*m_generator)(m_filename, subimage, miplevel, s,
+                            x, xend, y, yend, z, zend, 0, s.nchannels, data))
+            return false;
+        return true;
+    }
+    
     if (! m_input && !m_broken) {
         // The file is already in the file cache, but the handle is
         // closed.  We will need to re-open, so we must make sure there
@@ -940,6 +950,25 @@ ImageCacheFile::invalidate ()
         ;
 }
 
+    
+void
+ImageCacheFile::build_level_info(const ImageSpec &spec) {
+    m_subimages.resize(1);
+    SubimageInfo &si(m_subimages[0]);
+    si.init (spec, imagecache().forcefloat());
+
+    ImageSpec lvl = spec;
+    while (lvl.width > 1 || lvl.height > 1) {
+        if (lvl.width > 1)
+            lvl.width /= 2;
+        if (lvl.height > 1)
+            lvl.height /= 2;
+        lvl.full_width = lvl.width;
+        lvl.full_height = lvl.height;
+        ImageCacheFile::LevelInfo levelinfo(lvl, lvl);
+        si.levels.push_back(levelinfo);
+    }
+}
 
 
 ImageCacheFile *
@@ -2451,7 +2480,13 @@ ImageCacheImpl::add_file (ustring filename, bool mipped,
     }
     ImageCachePerThreadInfo *thread_info = get_perthread_info ();
     ImageCacheFile *file = find_file (filename, thread_info, &spec, generator);
-    return (file && !file->broken());
+    if (!file || file->broken())
+        return false;
+    
+    if (mipped)
+        file->build_level_info(spec);
+    
+    return true;
 }
 
 

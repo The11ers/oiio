@@ -136,7 +136,8 @@ public:
 
     void clear ();
     void reset (const std::string &name, ImageCache *imagecache = NULL);
-    void reset (const std::string &name, const ImageSpec &spec);
+    void reset (const std::string &name, const ImageSpec &spec,
+                int miplevel, ImageCache *imagecache = NULL);
     void alloc (const ImageSpec &spec);
     void realloc ();
     bool init_spec (const std::string &filename, int subimage, int miplevel);
@@ -430,21 +431,29 @@ ImageBuf::reset (const std::string &filename, ImageCache *imagecache)
 
 
 void
-ImageBufImpl::reset (const std::string &filename, const ImageSpec &spec)
+ImageBufImpl::reset (const std::string &filename, const ImageSpec &spec,
+                     int miplevel, ImageCache *imagecache)
 {
     clear ();
     m_name = ustring (filename);
+    if (imagecache)
+        m_imagecache = imagecache;
     m_current_subimage = 0;
-    m_current_miplevel = 0;
-    alloc (spec);
+    m_current_miplevel = miplevel;
+    if (imagecache) {
+        m_spec = spec;
+        m_spec_valid = true;
+    } else
+        alloc (spec);
 }
 
 
 
 void
-ImageBuf::reset (const std::string &filename, const ImageSpec &spec)
+ImageBuf::reset (const std::string &filename, const ImageSpec &spec,
+                 int miplevel, ImageCache *imagecache)
 {
-    impl()->reset (filename, spec);
+    impl()->reset (filename, spec, miplevel, imagecache);
 }
 
 

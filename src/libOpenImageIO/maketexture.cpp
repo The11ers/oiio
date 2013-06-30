@@ -540,6 +540,76 @@ maketx_merge_spec (ImageSpec &dstspec, const ImageSpec &srcspec)
 }
 
 
+class MipmapGenerator : public ImageCache::TexelGenerator {
+public:
+    MipmapGenerator(boost::shared_ptr<ImageBuf> lvl0, ImageCache *imagecache)
+        : m_lvl0(lvl0), m_imagecache(imagecache),
+          m_envlatlmode(false), m_allow_shift(true) { ASSERT(m_imagecache); }
+    
+    virtual bool operator() (ustring name, int subimage, int miplevel,
+                             const ImageSpec &spec,
+                             int xbegin, int xend, int ybegin, int yend,
+                             int zbegin, int zend, int chbegin, int chend,
+                             void *buffer) {
+        ASSERT(miplevel > 0);
+        
+        // Allocate a buffer to store the parent region we need to downsample
+        size_t chcount = chend - chbegin;
+        size_t pelsize = m_lvl0->spec().format.size() * chcount;
+        size_t pelcount = 4 * (xend - xbegin) * (yend - ybegin) * (zend - zbegin);
+        size_t bytes = pelcount * pelsize;
+        std::vector<unsigned char> pbuf (bytes);
+        
+        // Request the buffer from the image cache to access parent texels
+        const ustring pname = miplevel == 1 ? ustring(m_lvl0->name()) : name;
+        if (! m_imagecache->get_pixels(pname, subimage, miplevel-1,
+                                       xbegin*2, xend*2, ybegin*2, yend*2,
+                                       zbegin, zend, chbegin, chend,
+                                       m_lvl0->spec().format, &pbuf[0]))
+            return false;
+        
+        // Wrap the child and parent buffers as ImageBufs for resizing.
+        // FIXME: Handle edges of images, where tiles go outside boundary.
+        ImageSpec cspec, pspec;
+        cspec = m_lvl0->spec();
+        cspec.width = xend - xbegin;
+        cspec.height = yend - ybegin;
+        cspec.depth = 1;
+        cspec.x = 0;
+        cspec.y = 0;
+        cspec.z = 0;
+        
+        pspec = cspec;
+        pspec.width = cspec.width * 2;
+        pspec.height = cspec.height * 2;
+        pspec.depth = 1;
+        pspec.x = 0;
+        pspec.y = 0;
+        pspec.z = 0;
+        
+        ImageBuf parent ("parent", pspec, &pbuf[0]);
+        ImageBuf child ("child", cspec, buffer);
+        
+        parent.set_full (parent.xbegin(), parent.xend(), parent.ybegin(),
+                         parent.yend(), parent.zbegin(), parent.zend());
+        child.set_full (child.xbegin(), child.xend(), child.ybegin(),
+                        child.yend(), child.zbegin(), child.zend());
+        
+        // FIXME: Assume box filter for now, handle general case as below
+        ImageBufAlgo::parallel_image (boost::bind(resize_block,
+            boost::ref(child), boost::cref(parent), _1, m_envlatlmode,
+            m_allow_shift), OIIO::get_roi(child.spec()));
+
+        return false;
+    }
+    
+private:
+    boost::shared_ptr<ImageBuf> m_lvl0;
+    ImageCache *m_imagecache;
+    bool m_envlatlmode, m_allow_shift;
+};
+
+
 
 static bool
 write_mipmap (ImageBufAlgo::MakeTextureMode mode,
@@ -621,9 +691,21 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         if (mipimages_unsplit.length())
             Strutil::split (mipimages_unsplit, mipimages, ";");
         bool allow_shift = configspec.get_int_attribute("maketx:allow_pixel_shift") != 0;
+        bool writable_ic = configspec.get_int_attribute("maketx:writable_ic") != 0 &&
+                           img->imagecache() != NULL;
         float pct_done = 0.1;
 
         boost::shared_ptr<ImageBuf> small (new ImageBuf);
+        MipmapGenerator generator(img, img->imagecache());
+        static const char *mipcache = "mipmap-cache";
+        if (! img->imagecache()->add_file(OIIO::ustring(mipcache),
+                                          true/*mipped*/,
+                                          img->spec(), &generator))
+            return false;
+        if (writable_ic)
+            small->reset(mipcache, img->imagecache());
+
+        int miplevel = 0;
         while (outspec.width > 1 || outspec.height > 1) {
             Timer miptimer;
             ImageSpec smallspec;
@@ -674,31 +756,36 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                 smallspec.y = 0;
                 smallspec.full_x = 0;
                 smallspec.full_y = 0;
-                small->alloc (smallspec);  // Realocate with new size
-                img->set_full (img->xbegin(), img->xend(), img->ybegin(),
-                               img->yend(), img->zbegin(), img->zend());
-
-                if (filtername == "box")
-                    ImageBufAlgo::parallel_image (boost::bind(resize_block, boost::ref(*small), boost::cref(*img), _1, envlatlmode, allow_shift),
-                                                  OIIO::get_roi(small->spec()));
-                else {
-                    Filter2D *filter = setup_filter (small->spec(), img->spec(), filtername);
-                    if (! filter) {
-                        outstream << "maketx ERROR: could not make filter '" << filtername << "\n";
-                        return false;
+                
+                if (writable_ic) {
+                    small->init_spec(mipcache, 0, ++miplevel);
+                } else {
+                    small->alloc (smallspec);  // Realocate with new size
+                    img->set_full (img->xbegin(), img->xend(), img->ybegin(),
+                                   img->yend(), img->zbegin(), img->zend());
+                    
+                    if (filtername == "box") {
+                        ImageBufAlgo::parallel_image (boost::bind(resize_block, boost::ref(*small), boost::cref(*img), _1, envlatlmode, allow_shift),
+                                                      OIIO::get_roi(small->spec()));
+                    } else {
+                        Filter2D *filter = setup_filter (small->spec(), img->spec(), filtername);
+                        if (! filter) {
+                            outstream << "maketx ERROR: could not make filter '" << filtername << "\n";
+                            return false;
+                        }
+                        if (verbose) {
+                            outstream << "  Downsampling filter \"" << filter->name()
+                            << "\" width = " << filter->width() << "\n";
+                        }
+                        if (do_highlight_compensation)
+                            ImageBufAlgo::rangecompress (*img);
+                        ImageBufAlgo::resize (*small, *img, filter);
+                        if (do_highlight_compensation) {
+                            ImageBufAlgo::rangeexpand (*small);
+                            ImageBufAlgo::clamp (*small, 0.0f, std::numeric_limits<float>::max(), true);
+                        }
+                        Filter2D::destroy (filter);
                     }
-                    if (verbose) {
-                        outstream << "  Downsampling filter \"" << filter->name() 
-                                  << "\" width = " << filter->width() << "\n";
-                    }
-                    if (do_highlight_compensation)
-                        ImageBufAlgo::rangecompress (*img);
-                    ImageBufAlgo::resize (*small, *img, filter);
-                    if (do_highlight_compensation) {
-                        ImageBufAlgo::rangeexpand (*small);
-                        ImageBufAlgo::clamp (*small, 0.0f, std::numeric_limits<float>::max(), true);
-                    }
-                    Filter2D::destroy (filter);
                 }
             }
 

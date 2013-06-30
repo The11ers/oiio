@@ -237,7 +237,7 @@ public:
                                  const ImageSpec &spec,
                                  int xbegin, int xend, int ybegin, int yend,
                                  int zbegin, int zend, int chbegin, int chend,
-                                 float *buffer) { return false; }
+                                 void *buffer) { return false; }
     };
 
     /// This is used to allow the ImageCache to be used for writable

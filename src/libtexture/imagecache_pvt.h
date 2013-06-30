@@ -271,6 +271,8 @@ public:
         m_validspec = false;
         m_subimages.clear ();
     }
+    
+    void build_level_info(const ImageSpec &spec);
 
 private:
     ustring m_filename;             ///< Filename
