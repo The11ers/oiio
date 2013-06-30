@@ -753,24 +753,29 @@ public:
     /// time for fairly coherent tile access patterns, by using the
     /// per-thread microcache to boost our hit rate over the big cache.
     /// Inlined for speed.  The tile is marked as 'used'.
-    bool find_tile (const TileID &id, ImageCachePerThreadInfo *thread_info) {
+    ImageCacheTileRef find_tile (const TileID &id,
+                                 ImageCachePerThreadInfo *thread_info) {
         ++thread_info->m_stats.find_tile_calls;
-        ImageCacheTileRef &tile (thread_info->tile);
-        if (tile) {
-            if (tile->id() == id) {
-                tile->use ();
-                return true;    // already have the tile we want
+        if (thread_info->tile) {
+            if (thread_info->tile->id() == id) {
+                thread_info->tile->use ();
+                return thread_info->tile;    // already have the tile we want
             }
             // Tile didn't match, maybe lasttile will?  Swap tile
             // and last tile.  Then the new one will either match,
             // or we'll fall through and replace tile.
-            tile.swap (thread_info->lasttile);
-            if (tile && tile->id() == id) {
-                tile->use ();
-                return true;
+            thread_info->tile.swap (thread_info->lasttile);
+            if (thread_info->tile && thread_info->tile->id() == id) {
+                thread_info->tile->use ();
+                return thread_info->tile;
             }
         }
-        return find_tile_main_cache (id, tile, thread_info);
+        ImageCacheTileRef tile = find_tile_main_cache (id, thread_info);
+        if (tile) {
+            thread_info->lasttile = thread_info->tile;
+            thread_info->tile = tile;
+        }
+        return tile;
         // N.B. find_tile_main_cache marks the tile as used
     }
 
@@ -881,8 +886,8 @@ private:
     /// Find a tile identified by 'id' in the tile cache, paging it in if
     /// needed, and store a reference to the tile.  Return true if ok,
     /// false if no such tile exists in the file or could not be read.
-    bool find_tile_main_cache (const TileID &id, ImageCacheTileRef &tile,
-                               ImageCachePerThreadInfo *thread_info);
+    ImageCacheTileRef find_tile_main_cache (const TileID &id,
+                                            ImageCachePerThreadInfo *thread_info);
 
     /// Enforce the max memory for tile data.
     void check_max_mem (ImageCachePerThreadInfo *thread_info);

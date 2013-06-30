@@ -294,8 +294,7 @@ private:
     /// for fairly coherent tile access patterns, by using the
     /// per-thread microcache to boost our hit rate over the big cache.
     /// Inlined for speed.
-    bool find_tile (const TileID &id, PerThreadInfo *thread_info)
-    {
+    TileRef find_tile (const TileID &id, PerThreadInfo *thread_info) {
         return m_imagecache->find_tile (id, thread_info);
     }
 

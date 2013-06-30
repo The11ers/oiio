@@ -1872,9 +1872,9 @@ ImageCacheImpl::getattribute (const std::string &name, TypeDesc type,
 
 
 
-bool
-ImageCacheImpl::find_tile_main_cache (const TileID &id, ImageCacheTileRef &tile,
-                           ImageCachePerThreadInfo *thread_info)
+ImageCacheTileRef
+ImageCacheImpl::find_tile_main_cache (const TileID &id,
+                                      ImageCachePerThreadInfo *thread_info)
 {
     DASSERT (! id.file().broken());
     ImageCacheStatistics &stats (thread_info->m_stats);
@@ -1890,7 +1890,7 @@ ImageCacheImpl::find_tile_main_cache (const TileID &id, ImageCacheTileRef &tile,
         stats.find_tile_time += timer1();
 #endif
         if (found) {
-            tile = (*found).second;
+            ImageCacheTileRef tile = (*found).second;
             found.unlock();  // release the lock
             // We found the tile in the cache, but we need to make sure we
             // wait until the pixels are ready to read.  We purposely have
@@ -1901,7 +1901,7 @@ ImageCacheImpl::find_tile_main_cache (const TileID &id, ImageCacheTileRef &tile,
             tile->use ();
             DASSERT (id == tile->id());
             DASSERT (tile);
-            return true;
+            return tile;
         }
     }
 
@@ -1915,7 +1915,8 @@ ImageCacheImpl::find_tile_main_cache (const TileID &id, ImageCacheTileRef &tile,
     // the ImageCacheFile will lock itself for the read_tile and there are
     // no other non-threadsafe side effects.
     Timer timer;
-    tile = new ImageCacheTile (id, thread_info, m_read_before_insert);
+    ImageCacheTileRef tile = new ImageCacheTile (id, thread_info,
+                                                 m_read_before_insert);
     // N.B. the ImageCacheTile ctr starts the tile out as 'used'
     DASSERT (tile);
     DASSERT (id == tile->id());
@@ -1925,7 +1926,9 @@ ImageCacheImpl::find_tile_main_cache (const TileID &id, ImageCacheTileRef &tile,
 
     add_tile_to_cache (tile, thread_info);
     DASSERT (id == tile->id());
-    return tile->valid();
+    if (!tile->valid())
+        return NULL;
+    return tile;
 }
 
 
@@ -2340,6 +2343,7 @@ ImageCacheImpl::get_pixels (ImageCacheFile *file,
             }
             continue;
         }
+        ImageCacheTileRef tile;
         int old_tx = -100000, old_ty = -100000, old_tz = -100000;
         int tz = z - ((z - spec.z) % spec.tile_depth);
         char *yptr = zptr;
@@ -2377,8 +2381,8 @@ ImageCacheImpl::get_pixels (ImageCacheFile *file,
                     // Only do a find_tile and re-setup of the data
                     // pointer when we move across a tile boundary.
                     TileID tileid (*file, subimage, miplevel, tx, ty, tz);
-                    ok &= find_tile (tileid, thread_info);
-                    if (! ok)
+                    tile = find_tile (tileid, thread_info);
+                    if (! tile)
                         return false;  // Just stop if file read failed
                     old_tx = tx;
                     old_ty = ty;
@@ -2386,7 +2390,6 @@ ImageCacheImpl::get_pixels (ImageCacheFile *file,
                     data = NULL;
                 }
                 if (! data) {
-                    ImageCacheTileRef &tile (thread_info->tile);
                     ASSERT (tile);
                     data = (const char *)tile->data (x, y, z)
                                         + chbegin*formatsize;
@@ -2433,8 +2436,8 @@ ImageCacheImpl::get_tile (ustring filename, int subimage, int miplevel,
     y = spec.y + ytile * spec.tile_height;
     z = spec.z + ztile * spec.tile_depth;
     TileID id (*file, subimage, miplevel, x, y, z);
-    if (find_tile(id, thread_info)) {
-        ImageCacheTileRef tile(thread_info->tile);
+    ImageCacheTileRef tile = find_tile(id, thread_info);
+    if (tile) {
         tile->_incref();   // Fake an extra reference count
         return (ImageCache::Tile *) tile.get();
     } else {

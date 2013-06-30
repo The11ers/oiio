@@ -309,12 +309,11 @@ TextureSystemImpl::accum3d_sample_closest (const Imath::V3f &P, int miplevel,
     int tile_r = (rtex - spec.z) % spec.tile_depth;
     TileID id (texturefile, options.subimage, miplevel,
                stex - tile_s, ttex - tile_t, rtex - tile_r);
-    bool ok = find_tile (id, thread_info);
-    if (! ok)
+    TileRef tile = find_tile (id, thread_info);
+    if (! tile) {
         error ("%s", m_imagecache->geterror().c_str());
-    TileRef &tile (thread_info->tile);
-    if (! tile  ||  ! ok)
         return false;
+    }
     size_t channelsize = texturefile.channelsize(options.subimage);
     int tilepel = (tile_r * spec.tile_height + tile_t) * spec.tile_width + tile_s;
     int offset = spec.nchannels * tilepel + options.firstchannel;
@@ -425,12 +424,11 @@ TextureSystemImpl::accum3d_sample_bilinear (const Imath::V3f &P, int miplevel,
         // Shortcut if all the texels we need are on the same tile
         TileID id (texturefile, options.subimage, miplevel,
                    stex[0] - tile_s, ttex[0] - tile_t, rtex[0] - tile_r);
-        bool ok = find_tile (id, thread_info);
-        if (! ok)
+        TileRef tile = find_tile (id, thread_info);
+        if (! tile) {
             error ("%s", m_imagecache->geterror().c_str());
-        TileRef &tile (thread_info->tile);
-        if (! tile->valid())
             return false;
+        }
         size_t tilepel = (tile_r * spec.tile_height + tile_t) * spec.tile_width + tile_s;
         size_t offset = (spec.nchannels * tilepel + options.firstchannel) * channelsize;
         DASSERT ((size_t)offset < spec.tile_width*spec.tile_height*spec.tile_depth*pixelsize);
@@ -459,12 +457,11 @@ TextureSystemImpl::accum3d_sample_bilinear (const Imath::V3f &P, int miplevel,
                     TileID id (texturefile, options.subimage, miplevel,
                                stex[i] - tile_s, ttex[j] - tile_t,
                                rtex[k] - tile_r);
-                    bool ok = find_tile (id, thread_info);
-                    if (! ok)
+                    TileRef tile = find_tile (id, thread_info);
+                    if (! tile) {
                         error ("%s", m_imagecache->geterror().c_str());
-                    TileRef &tile (thread_info->tile);
-                    if (! tile->valid())
                         return false;
+                    }
                     savetile[k][j][i] = tile;
                     size_t tilepel = (tile_r * spec.tile_height + tile_t) * spec.tile_width + tile_s;
                     size_t offset = (spec.nchannels * tilepel + options.firstchannel) * channelsize;

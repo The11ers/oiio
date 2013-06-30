@@ -447,8 +447,8 @@ TextureSystemImpl::get_texels (ustring filename, TextureOpt &options,
                 }
                 int tx = x - ((x - spec.x) % spec.tile_width);
                 TileID tileid (*texfile, subimage, miplevel, tx, ty, tz);
-                ok &= find_tile (tileid, thread_info);
-                TileRef &tile (thread_info->tile);
+                TileRef tile = find_tile (tileid, thread_info);
+                ok &= tile != NULL;
                 const char *data;
                 if (tile && (data = (const char *)tile->data (x, y, z))) {
                     data += options.firstchannel * texfile->datatype(subimage).size();
@@ -1325,12 +1325,11 @@ TextureSystemImpl::accum_sample_closest (float s, float t, int miplevel,
     int tile_t = (ttex - spec.y) % spec.tile_height;
     TileID id (texturefile, options.subimage, miplevel,
                stex - tile_s, ttex - tile_t, 0);
-    bool ok = find_tile (id, thread_info);
-    if (! ok)
+    TileRef tile = find_tile (id, thread_info);
+    if (! tile) {
         error ("%s", m_imagecache->geterror().c_str());
-    TileRef &tile (thread_info->tile);
-    if (! tile  ||  ! ok)
         return false;
+    }
     size_t channelsize = texturefile.channelsize(options.subimage);
     int offset = spec.nchannels * (tile_t * spec.tile_width + tile_s) + options.firstchannel;
     DASSERT ((size_t)offset < spec.nchannels*spec.tile_pixels());
@@ -1420,10 +1419,9 @@ TextureSystemImpl::accum_sample_bilinear (float s, float t, int miplevel,
         // Shortcut if all the texels we need are on the same tile
         TileID id (texturefile, options.subimage, miplevel,
                    stex[0] - tile_s, ttex[0] - tile_t, 0);
-        bool ok = find_tile (id, thread_info);
-        if (! ok)
+        TileRef tile = find_tile (id, thread_info);
+        if (! tile)
             error ("%s", m_imagecache->geterror().c_str());
-        TileRef &tile (thread_info->tile);
         if (! tile->valid()) {
 #if 0
             std::cerr << "found it\n";
@@ -1455,12 +1453,11 @@ TextureSystemImpl::accum_sample_bilinear (float s, float t, int miplevel,
                 tile_t = (ttex[j] - spec.y) % spec.tile_height;
                 TileID id (texturefile, options.subimage, miplevel,
                            stex[i] - tile_s, ttex[j] - tile_t, 0);
-                bool ok = find_tile (id, thread_info);
-                if (! ok)
+                TileRef tile = find_tile (id, thread_info);
+                if (! tile) {
                     error ("%s", m_imagecache->geterror().c_str());
-                TileRef &tile (thread_info->tile);
-                if (! tile->valid())
                     return false;
+                }
                 savetile[j][i] = tile;
                 int offset = pixelsize * (tile_t * spec.tile_width + tile_s);
                 DASSERT ((size_t)offset < spec.tile_width*spec.tile_height*spec.tile_depth*pixelsize);
@@ -1647,11 +1644,9 @@ TextureSystemImpl::accum_sample_bicubic (float s, float t, int miplevel,
         // Shortcut if all the texels we need are on the same tile
         TileID id (texturefile, options.subimage, miplevel,
                    stex[0] - tile_s, ttex[0] - tile_t, 0);
-        bool ok = find_tile (id, thread_info);
-        if (! ok)
-            error ("%s", m_imagecache->geterror().c_str());
-        TileRef &tile (thread_info->tile);
+        TileRef tile = find_tile (id, thread_info);
         if (! tile) {
+            error ("%s", m_imagecache->geterror().c_str());
             return false;
         }
         // N.B. thread_info->tile will keep holding a ref-counted pointer
@@ -1674,12 +1669,11 @@ TextureSystemImpl::accum_sample_bicubic (float s, float t, int miplevel,
                 tile_t = (ttex[j] - spec.y) % spec.tile_height;
                 TileID id (texturefile, options.subimage, miplevel,
                            stex_i - tile_s, ttex[j] - tile_t, 0);
-                bool ok = find_tile (id, thread_info);
-                if (! ok)
+                TileRef tile = find_tile (id, thread_info);
+                if (! tile) {
                     error ("%s", m_imagecache->geterror().c_str());
-                TileRef &tile (thread_info->tile);
-                if (! tile->valid())
                     return false;
+                }
                 savetile[j][i] = tile;
                 DASSERT (tile->id() == id);
                 int offset = pixelsize * (tile_t * spec.tile_width + tile_s);

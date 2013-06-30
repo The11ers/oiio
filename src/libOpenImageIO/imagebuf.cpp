@@ -708,13 +708,22 @@ ImageBuf::write (ImageOutput *out,
         // Deep image record
         ok = out->write_deep_image (impl->m_deepdata);
     } else {
+#if 0
+        std::vector<char> tmp (m_spec.image_bytes());
+        get_pixels (xbegin(), xend(), ybegin(), yend(), zbegin(), zend(),
+                    m_spec.format, &tmp[0]);
+        ok = out->write_image (m_spec.format, &tmp[0], as, as, as,
+                               progress_callback, progress_callback_data);
+        // FIXME -- not good for huge images.  Instead, we should read
+        // little bits at a time (scanline or tile blocks).
+#else
         // Backed by ImageCache
         ASSERT(imagecache());
         bool native = (m_spec.format == TypeDesc::UNKNOWN);
         stride_t pixel_bytes = native ? (stride_t) m_spec.pixel_bytes (native)
                                       : m_spec.format.size() * m_spec.nchannels;
         stride_t xstride = pixel_bytes;
-        stride_t ystride, zstride;
+        stride_t ystride = as, zstride = as;    // Assume autostride
         m_spec.auto_stride (xstride, ystride, zstride, m_spec.format,
                             m_spec.nchannels, m_spec.width, m_spec.height);
         
@@ -727,7 +736,10 @@ ImageBuf::write (ImageOutput *out,
         // of contiguous tile buffers at the native format. For untiled IB,
         // this will create and copy a tile, which we need to do anyway for
         // output, and for tiled files, we read and then write directly.
-        if (m_spec.tile_width && out->supports ("tiles")) {
+        bool tile_sizes_match = m_spec.tile_width == out->spec().tile_width &&
+                                m_spec.tile_height == out->spec().tile_height &&
+                                m_spec.tile_depth == out->spec().tile_depth;
+        if (m_spec.tile_width && out->supports ("tiles") && tile_sizes_match) {
             // Tiled image
             for (int z = 0;  z < m_spec.depth;  z += m_spec.tile_depth) {
                 for (int y = 0;  y < m_spec.height;  y += m_spec.tile_height) {
@@ -738,8 +750,34 @@ ImageBuf::write (ImageOutput *out,
                             TypeDesc format;
                             const void *d = imagecache()->tile_pixels(tile, format);
                             ok &= out->write_tile(x, y, z, format, d);
+                            imagecache()->release_tile(tile);
                         }
                     }
+                    if (progress_callback &&
+                        progress_callback (progress_callback_data,
+                                           (float)(z*m_spec.height+y)/(m_spec.height*m_spec.depth)))
+                        return ok;
+                }
+            }
+        } else if (m_spec.tile_width && out->supports ("tiles")) {
+            //
+            // FIXME: Untested!
+            //
+            
+            const int chunk = out->spec().tile_height;
+            size_t strip_bytes = chunk * m_spec.width * pixel_bytes;
+            std::vector<char> data(strip_bytes);
+            for (int z = 0;  z < m_spec.depth;  ++z) {
+                int zend = std::min (z+m_spec.z+m_spec.tile_depth,
+                                     m_spec.z+m_spec.depth);
+                for (int y = 0;  y < m_spec.height && ok;  y += chunk) {
+                    int yend = std::min (y+m_spec.y+chunk, m_spec.y+m_spec.height);
+                    get_pixels (m_spec.x, m_spec.x + m_spec.width,
+                                y + m_spec.y, yend, z + m_spec.z, zend,
+                                m_spec.format, &data[0]);
+                    ok &= out->write_tiles(m_spec.x, m_spec.x + m_spec.width,
+                                           y + m_spec.y, yend, z + m_spec.z,
+                                           zend, m_spec.format, &data[0]);
                     if (progress_callback &&
                         progress_callback (progress_callback_data,
                                            (float)(z*m_spec.height+y)/(m_spec.height*m_spec.depth)))
@@ -775,6 +813,7 @@ ImageBuf::write (ImageOutput *out,
         
         if (progress_callback)
             progress_callback (progress_callback_data, 1.0f);
+#endif
     }
     if (! ok)
         error ("%s", out->geterror ());
