@@ -2301,7 +2301,6 @@ ImageCacheImpl::get_pixels (ImageCacheFile *file,
                             stride_t xstride, stride_t ystride, stride_t zstride)
 {
     const ImageSpec &spec (file->spec(subimage, miplevel));
-    bool ok = true;
 
     // Compute channels and stride if not given (assume all channels,
     // contiguous data layout for strides).
@@ -2412,7 +2411,7 @@ ImageCacheImpl::get_pixels (ImageCacheFile *file,
         }
     }
 
-    return ok;
+    return true;
 }
 
 

@@ -517,10 +517,13 @@ read_exif_tag (ImageSpec &spec, const TIFFDirEntry *dirp,
         std::cerr << "exifid has type " << dir.tdir_type << ", offset " << dir.tdir_offset << "\n";
         std::cerr << "EXIF Number of directory entries = " << ndirs << "\n";
 #endif
-        for (int d = 0;  d < ndirs;  ++d)
-            read_exif_tag (spec, (const TIFFDirEntry *)(ifd+2+d*sizeof(TIFFDirEntry)),
+        for (int d = 0;  d < ndirs;  ++d) {
+            TIFFDirEntry dir;
+            memcpy(&dir, ifd+2+d*sizeof(TIFFDirEntry), sizeof(TIFFDirEntry));
+            read_exif_tag (spec, &dir,
                            (const char *)buf, swab, ifd_offsets_seen, 
                            dir.tdir_tag == TIFFTAG_EXIFIFD ? exif_tagmap : gps_tagmap);
+        }
 #if DEBUG_EXIF_READ
         std::cerr << "> End EXIF\n";
 #endif
@@ -765,7 +768,9 @@ decode_exif (const void *exif, int length, ImageSpec &spec)
     // N.B. Just read libtiff's "tiff.h" for info on the structure 
     // layout of TIFF headers and directory entries.  The TIFF spec
     // itself is also helpful in this area.
-    TIFFHeader head = *(const TIFFHeader *)buf;
+    TIFFHeader head;
+    memcpy(&head, buf, sizeof(TIFFHeader));
+//    TIFFHeader head = *(const TIFFHeader *)buf;
     if (head.tiff_magic != 0x4949 && head.tiff_magic != 0x4d4d)
         return false;
     bool host_little = littleendian();
