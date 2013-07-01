@@ -312,7 +312,7 @@ resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shif
     if (!allow_shift && (src.spec().width % 2 || src.spec().height % 2))
         return resize_block_<SRCTYPE>(dst, src, roi, false);
     
-    DASSERT(roi.ybegin + roi.height() <= dst.spec().height);
+    DASSERT (roi.ybegin + roi.height() <= dst.spec().height);
 
     // Allocate two scanline buffers to hold the result of the first pass
     const int nchannels = dst.nchannels();
@@ -540,16 +540,17 @@ maketx_merge_spec (ImageSpec &dstspec, const ImageSpec &srcspec)
 }
 
 
+
 class MipmapGenerator : public ImageCache::TexelGenerator {
 public:
     MipmapGenerator() : m_miplevel(0), m_envlatlmode(false), m_allow_shift(true) {}
     
-    virtual bool set_prev_level(boost::shared_ptr<ImageBuf> &ptr, int miplevel) {
+    virtual bool set_prev_level (boost::shared_ptr<ImageBuf> &ptr,int miplevel){
         if (! ptr->imagecache())
             return false;
         m_lvl = ptr;
         m_miplevel = miplevel;
-        m_lvl->init_spec(m_lvl->name(), 0, 0);
+        m_lvl->init_spec (m_lvl->name(), 0, 0);
         return true;
     }
     
@@ -558,8 +559,8 @@ public:
                              int xbegin, int xend, int ybegin, int yend,
                              int zbegin, int zend, int chbegin, int chend,
                              void *buffer) {
-        ASSERT(m_lvl);
-        DASSERT(miplevel == m_miplevel+1 || miplevel == m_miplevel+2);
+        ASSERT (m_lvl);
+        DASSERT (miplevel == m_miplevel+1 || miplevel == m_miplevel+2);
         
         // Allocate a buffer to store the parent region we need to downsample
         size_t chcount = chend - chbegin;
@@ -569,11 +570,12 @@ public:
         std::vector<unsigned char> pbuf (bytes);
         
         // Request the buffer from the image cache to access parent texels
-        const ustring pname = miplevel == m_miplevel+1 ? ustring(m_lvl->name()) : name;
-        if (! m_lvl->imagecache()->get_pixels(pname, subimage, 0 /*miplevel-1*/,
-                                              xbegin*2, xend*2, ybegin*2, yend*2,
-                                              zbegin, zend, chbegin, chend,
-                                              m_lvl->spec().format, &pbuf[0]))
+        const ustring pname = miplevel == m_miplevel+1 ? ustring(m_lvl->name())
+                                                       : name;
+        if (! m_lvl->imagecache()->get_pixels (pname, subimage, 0/*miplevel-1*/,
+                                               xbegin*2,xend*2, ybegin*2,yend*2,
+                                               zbegin, zend, chbegin, chend,
+                                               m_lvl->spec().format, &pbuf[0]))
             return false;
         
         // Wrap the child and parent buffers as ImageBufs for resizing.
@@ -618,16 +620,20 @@ private:
 };
 
 
+
 bool
 write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup)
 {
     if (!buf.imagecache())
         return false;
-    const ImageSpec &spec(out->spec());
+    if (!out)
+        return false;
+    
+    const ImageSpec &spec (buf.spec());
     bool tile_sizes_match = spec.tile_width == out->spec().tile_width &&
                             spec.tile_height == out->spec().tile_height &&
                             spec.tile_depth == out->spec().tile_depth;
-    if (!spec.tile_width || !out->supports("tiles") || !tile_sizes_match)
+    if (!spec.tile_width || !out->supports ("tiles") || !tile_sizes_match)
         return false;
     
     bool native = (spec.format == TypeDesc::UNKNOWN);
@@ -651,11 +657,13 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup)
                     continue;
                 }
                 TypeDesc format;
-                const void *d = buf.imagecache()->tile_pixels(tile, format);
+                const void *d = buf.imagecache()->tile_pixels (tile, format);
                 DASSERT(format == out->spec().format);
-                DASSERT(format == dup->spec().format);
-                ok &= out->write_tile(x, y, z, format, d);
-                ok &= dup->write_tile(x, y, z, format, d);
+                ok &= out->write_tile (x, y, z, format, d);
+                if (dup) {
+                    DASSERT(format == dup->spec().format);
+                    ok &= dup->write_tile (x, y, z, format, d);
+                }
                 buf.imagecache()->release_tile(tile);
             }
         }
@@ -731,19 +739,13 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         outstream << "  Top level is " << formatres(outspec) << std::endl;
     }
 
-    if (! img->write (out)) {
+    if (! write_tiled_dup(*img, out, NULL /*no dup for first level*/)) {
         // ImageBuf::write transfers any errors from the ImageOutput to
         // the ImageBuf.
         outstream << "maketx ERROR: Write failed \" : " << img->geterror() << "\n";
         out->close ();
         return false;
     }
-    
-    char lvlbase[1024];
-    strcpy(lvlbase, outputfilename.c_str());
-    size_t n = strlen(lvlbase);
-    lvlbase[n-4] = '\0';
-    ImageOutput *dup = ImageOutput::create(outputfilename.c_str());
 
     stat_writetime += writetimer();
 
@@ -759,23 +761,25 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                            img->imagecache() != NULL;
         float pct_done = 0.1;
 
-        // FIXME: Leaking the generator currently!
         // Create a mipmap generator that must live as long as we use
         // this file in the passed-in image cache. Use refcnt in ImageCacheFile?
         static MipmapGenerator generator;               // FIXME: Static!
         static const char *mipcache = "mipmap-cache";
-        if (! img->imagecache()->add_file(OIIO::ustring(mipcache),
-                                          true/*mipped*/,
-                                          img->spec(), &generator))
-            return false;
-
-        ImageSpec dupspec = outspec;
-        boost::shared_ptr<ImageBuf> lvlbuf(new ImageBuf);
-        boost::shared_ptr<ImageBuf> small (new ImageBuf);
-        if (writable_ic)
-            small->reset(mipcache, img->imagecache());
 
         int miplevel = 0;
+        ImageSpec dupspec = outspec;
+        ImageOutput *dup = NULL;
+        boost::shared_ptr<ImageBuf> lvlbuf(new ImageBuf);
+        boost::shared_ptr<ImageBuf> small (new ImageBuf);
+        if (writable_ic) {
+            if (! img->imagecache()->add_file(OIIO::ustring(mipcache),
+                                              true/*mipped*/,
+                                              img->spec(), &generator))
+                return false;
+            small->reset(mipcache, img->imagecache());
+            dup = ImageOutput::create(outputfilename.c_str());
+        }
+
         while (outspec.width > 1 || outspec.height > 1) {
             Timer miptimer;
             ImageSpec smallspec;
@@ -833,11 +837,10 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                 smallspec.y = 0;
                 smallspec.full_x = 0;
                 smallspec.full_y = 0;
-                
                 small->alloc (smallspec);  // Realocate with new size
                 img->set_full (img->xbegin(), img->xend(), img->ybegin(),
                                img->yend(), img->zbegin(), img->zend());
-                
+
                 if (filtername == "box") {
                     ImageBufAlgo::parallel_image (boost::bind(resize_block, boost::ref(*small), boost::cref(*img), _1, envlatlmode, allow_shift),
                                                   OIIO::get_roi(small->spec()));
@@ -848,8 +851,8 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                         return false;
                     }
                     if (verbose) {
-                        outstream << "  Downsampling filter \"" << filter->name()
-                        << "\" width = " << filter->width() << "\n";
+                        outstream << "  Downsampling filter \"" << filter->name() 
+                                  << "\" width = " << filter->width() << "\n";
                     }
                     if (do_highlight_compensation)
                         ImageBufAlgo::rangecompress (*img);
@@ -885,18 +888,18 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                           << "\" : " << out->geterror() << "\n";
                 return false;
             }
-            char lvltmp[1024];
+            std::string ext = Strutil::format(".%d.tif", miplevel);
+            std::string lvlname = Filesystem::replace_extension(outputfilename, ext);
             if (writable_ic) {
-                sprintf(lvltmp, "%s-%d.tif", lvlbase, miplevel);
-                unlink(lvltmp);
-                img->imagecache()->invalidate(ustring(lvltmp));
+                unlink(lvlname.c_str());
+                img->imagecache()->invalidate(ustring(lvlname.c_str()));
                 dupspec.width = smallspec.width;
                 dupspec.height = smallspec.height;
                 dupspec.full_width = smallspec.full_width;
                 dupspec.full_height = smallspec.full_height;
                 dupspec.tile_width = smallspec.tile_width;
                 dupspec.tile_height = smallspec.tile_height;
-                if (! dup->open(lvltmp, dupspec))
+                if (! dup->open(lvlname.c_str(), dupspec))
                     return false;
             }
             if (! write_tiled_dup(*small, out, dup)) {
@@ -909,7 +912,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
             }
             if (writable_ic) {
                 dup->close();
-                lvlbuf->reset(lvltmp, img->imagecache());
+                lvlbuf->reset(lvlname.c_str(), img->imagecache());
             }
             
             stat_writetime += writetimer();

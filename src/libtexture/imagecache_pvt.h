@@ -272,7 +272,7 @@ public:
         m_subimages.clear ();
     }
     
-    void build_level_info(const ImageSpec &spec);
+    void build_mipmap_level_info(const ImageSpec &spec);
 
 private:
     ustring m_filename;             ///< Filename

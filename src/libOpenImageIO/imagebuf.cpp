@@ -136,8 +136,7 @@ public:
 
     void clear ();
     void reset (const std::string &name, ImageCache *imagecache = NULL);
-    void reset (const std::string &name, const ImageSpec &spec,
-                int miplevel, ImageCache *imagecache = NULL);
+    void reset (const std::string &name, const ImageSpec &spec);
     void alloc (const ImageSpec &spec);
     void realloc ();
     bool init_spec (const std::string &filename, int subimage, int miplevel);
@@ -431,29 +430,21 @@ ImageBuf::reset (const std::string &filename, ImageCache *imagecache)
 
 
 void
-ImageBufImpl::reset (const std::string &filename, const ImageSpec &spec,
-                     int miplevel, ImageCache *imagecache)
+ImageBufImpl::reset (const std::string &filename, const ImageSpec &spec)
 {
     clear ();
     m_name = ustring (filename);
-    if (imagecache)
-        m_imagecache = imagecache;
     m_current_subimage = 0;
-    m_current_miplevel = miplevel;
-    if (imagecache) {
-        m_spec = spec;
-        m_spec_valid = true;
-    } else
-        alloc (spec);
+    m_current_miplevel = 0;
+    alloc (spec);
 }
 
 
 
 void
-ImageBuf::reset (const std::string &filename, const ImageSpec &spec,
-                 int miplevel, ImageCache *imagecache)
+ImageBuf::reset (const std::string &filename, const ImageSpec &spec)
 {
-    impl()->reset (filename, spec, miplevel, imagecache);
+    impl()->reset (filename, spec);
 }
 
 
@@ -708,7 +699,11 @@ ImageBuf::write (ImageOutput *out,
         // Deep image record
         ok = out->write_deep_image (impl->m_deepdata);
     } else {
-#if 0
+        // These changes are not required to reduce the memory footprint
+        // of make_texture, which now uses its own private write function.
+        // However, we may want to finish testing these changes and integrate
+        // them as part of the main path to reduce usage in the common case.
+#if 1
         std::vector<char> tmp (m_spec.image_bytes());
         get_pixels (xbegin(), xend(), ybegin(), yend(), zbegin(), zend(),
                     m_spec.format, &tmp[0]);

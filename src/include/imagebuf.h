@@ -202,8 +202,7 @@ public:
 
     /// Forget all previous info, reset this ImageBuf to a blank
     /// image of the given name and dimensions.
-    void reset (const std::string &name, const ImageSpec &spec,
-                int miplevel=0, ImageCache *imagecache = NULL);
+    void reset (const std::string &name, const ImageSpec &spec);
 
     /// Copy spec to *this, and then allocate enough space the right
     /// size for an image described by the format spec.  If the ImageBuf

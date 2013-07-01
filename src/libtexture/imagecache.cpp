@@ -950,25 +950,28 @@ ImageCacheFile::invalidate ()
         ;
 }
 
-    
+
+
 void
-ImageCacheFile::build_level_info(const ImageSpec &spec) {
+ImageCacheFile::build_mipmap_level_info(const ImageSpec &spec) {
+    m_subimages.clear();
     m_subimages.resize(1);
     SubimageInfo &si(m_subimages[0]);
     si.init (spec, imagecache().forcefloat());
+    si.levels.push_back(ImageCacheFile::LevelInfo(spec, spec)); // Base level
 
     ImageSpec lvl = spec;
-    while (lvl.width > 1 || lvl.height > 1) {
+    while (lvl.width > 1 || lvl.height > 1) {                   // Small levels
         if (lvl.width > 1)
             lvl.width /= 2;
         if (lvl.height > 1)
             lvl.height /= 2;
         lvl.full_width = lvl.width;
         lvl.full_height = lvl.height;
-        ImageCacheFile::LevelInfo levelinfo(lvl, lvl);
-        si.levels.push_back(levelinfo);
+        si.levels.push_back (ImageCacheFile::LevelInfo (lvl, lvl));
     }
 }
+
 
 
 ImageCacheFile *
@@ -2486,7 +2489,7 @@ ImageCacheImpl::add_file (ustring filename, bool mipped,
         return false;
     
     if (mipped)
-        file->build_level_info(spec);
+        file->build_mipmap_level_info(spec);
     
     return true;
 }
