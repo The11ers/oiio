@@ -2423,8 +2423,6 @@ ImageCache::Tile *
 ImageCacheImpl::get_tile (ustring filename, int subimage, int miplevel,
                           int x, int y, int z)
 {
-    if (x < 0 || y < 0 || z < 0)
-      return NULL;
     ImageCachePerThreadInfo *thread_info = get_perthread_info ();
     ImageCacheFile *file = find_file (filename, thread_info);
     if (! file || file->broken())
