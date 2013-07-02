@@ -622,7 +622,9 @@ private:
 
 
 bool
-write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup)
+write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup,
+                 bool (*progress)(float pct, void *data), void *progress_data,
+                 float progress_start, float progress_end)
 {
     if (!buf.imagecache())
         return false;
@@ -645,11 +647,15 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup)
                         spec.nchannels, spec.width, spec.height);
     
     bool ok = true;
+    
+    const int ntiles = ceilf(spec.depth  / float(spec.tile_depth))  *
+                       ceilf(spec.height / float(spec.tile_height)) *
+                       ceilf(spec.width  / float(spec.tile_width));
 
     ImageCache &ic(*buf.imagecache());
-    for (int z = 0;  z < spec.depth;  z += spec.tile_depth) {
+    for (int z = 0, i = 0;  z < spec.depth;  z += spec.tile_depth) {
         for (int y = 0;  y < spec.height;  y += spec.tile_height) {
-            for (int x = 0; x < spec.width; x += spec.tile_width) {
+            for (int x = 0; x < spec.width; x += spec.tile_width, ++i) {
                 ImageCache::Tile *tile = ic.get_tile(ustring(buf.name()),
                      buf.subimage(), buf.miplevel(), x+spec.x, y+spec.y, z+spec.z);
                 if (!tile) {
@@ -665,6 +671,9 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup)
                     ok &= dup->write_tile (x, y, z, format, d);
                 }
                 buf.imagecache()->release_tile(tile);
+                float pct = (progress_end - progress_start) * i / float(ntiles) + progress_start;
+                if (!(*progress)(pct, progress_data))
+                    ok = false;
             }
         }
     }
@@ -689,7 +698,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
               size_t &peak_mem,
               bool (*progress)(float pct, void *data), void *progress_data)
 {
-    const float pct_start = 0.20, pct_end = 0.95;
+    const float pct_start = 0.02, pct_end = 0.99;
     if (progress)
         (*progress)(pct_start, progress_data);
     bool envlatlmode = (mode == ImageBufAlgo::MakeTxEnvLatl);
@@ -739,7 +748,8 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         outstream << "  Top level is " << formatres(outspec) << std::endl;
     }
 
-    if (! write_tiled_dup(*img, out, NULL /*no dup for first level*/)) {
+    if (! write_tiled_dup(*img, out, NULL /*no dup for first level*/,
+                          progress, progress_data, pct_start, 0.2)) {
         // ImageBuf::write transfers any errors from the ImageOutput to
         // the ImageBuf.
         outstream << "maketx ERROR: Write failed \" : " << img->geterror() << "\n";
@@ -759,7 +769,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
         bool allow_shift = configspec.get_int_attribute("maketx:allow_pixel_shift") != 0;
         bool writable_ic = configspec.get_int_attribute("maketx:writable_ic") != 0 &&
                            img->imagecache() != NULL;
-        float pct_done = 0.1;
+        float pct_done = 0.2;
 
         // Create a mipmap generator that must live as long as we use
         // this file in the passed-in image cache. Use refcnt in ImageCacheFile?
@@ -871,13 +881,6 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
             if (envlatlmode && src_samples_border)
                 fix_latl_edges (*small);
 
-            float level_pct = 0.75 * (pct_end - pct_done);
-            pct_done += 0.5 * level_pct;
-            if (progress) {
-                if (!(*progress)(pct_done, progress_data))
-                    return false;
-            }
-          
             Timer writetimer;
             // If the format explicitly supports MIP-maps, use that,
             // otherwise try to simulate MIP-mapping with multi-image.
@@ -890,6 +893,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
             }
             std::string ext = Strutil::format(".%d.tif", miplevel);
             std::string lvlname = Filesystem::replace_extension(outputfilename, ext);
+            float level_pct = 0.7 * (pct_end - pct_done);
             if (writable_ic) {
                 unlink(lvlname.c_str());
                 img->imagecache()->invalidate(ustring(lvlname.c_str()));
@@ -901,8 +905,15 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                 dupspec.tile_height = smallspec.tile_height;
                 if (! dup->open(lvlname.c_str(), dupspec))
                     return false;
+            } else {
+                pct_done += 0.5 * level_pct;
+                if (progress) {
+                    if (!(*progress)(pct_done, progress_data))
+                        return false;
+                }
             }
-            if (! write_tiled_dup(*small, out, dup)) {
+            if (! write_tiled_dup(*small, out, dup, progress, progress_data,
+                                  pct_done, pct_done + level_pct)) {
                 // ImageBuf::write transfers any errors from the
                 // ImageOutput to the ImageBuf.
                 outstream << "maketx ERROR writing \"" << outputfilename
@@ -910,6 +921,7 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                 out->close ();
                 return false;
             }
+            pct_done += level_pct;
             if (writable_ic) {
                 dup->close();
                 lvlbuf->reset(lvlname.c_str(), img->imagecache());
@@ -923,11 +935,6 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                                               formatres(smallspec),
                                               Strutil::memformat(mem))
                           << std::endl;
-            }
-            pct_done += 0.5 * level_pct;
-            if (progress) {
-                if (!(*progress)(pct_done, progress_data))
-                    return false;
             }
             if (! writable_ic)
                 std::swap (img, small);
