@@ -288,24 +288,24 @@ resize_block_ (ImageBuf &dst, const ImageBuf &src, ROI roi, bool envlatlmode)
 }
 
 
-// Helper function to compute the first bilerp pass into a scanline buffer
 template<class SRCTYPE>
 static void
-halve_scanline(const SRCTYPE *s, const int nchannels, size_t sw, float *dst)
+halve_scanline4(const SRCTYPE *s, const int nchannels, size_t sw,
+                    size_t ystride, SRCTYPE *dst)
 {
     for (size_t i = 0; i < sw; i += 2, s += nchannels) {
         for (int j = 0; j < nchannels; ++j, ++dst, ++s)
-            *dst = 0.5f * (float) (*s + *(s + nchannels));
+            *dst = 0.25f * ((float)*s + *(s + nchannels) +
+                            *(s + ystride) + *(s + nchannels + ystride));
     }
 }
 
 
-
-// Bilinear resize performed as a 2-pass filter.
+// Quarter the input image, averaging the four parent pixels of each output.
 // Optimized to assume that the images are contiguous.
 template<class SRCTYPE>
 static bool
-resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shift)
+resize_block4 (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shift)
 {
     // Two-pass filtering introduces a half-pixel shift for odd resolutions.
     // Revert to correct bilerp sampling unless shift is explicitly allowed.
@@ -313,19 +313,14 @@ resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shif
         return resize_block_<SRCTYPE>(dst, src, roi, false);
     
     DASSERT (roi.ybegin + roi.height() <= dst.spec().height);
-
-    // Allocate two scanline buffers to hold the result of the first pass
-    const int nchannels = dst.nchannels();
-    const size_t row_elem = roi.width() * nchannels;    // # floats in scanline
-    boost::scoped_array<float> S0 (new float [row_elem]);
-    boost::scoped_array<float> S1 (new float [row_elem]);
     
     // We know that the buffers created for mipmapping are all contiguous,
     // so we can skip the iterators for a bilerp resize entirely along with
     // any NDC -> pixel math, and just directly traverse pixels.
     const SRCTYPE *s = (const SRCTYPE *)src.localpixels();
-    SRCTYPE *d = (SRCTYPE *)dst.localpixels();
+    SRCTYPE *d = (SRCTYPE *)dst.localpixels();          // DSTTYPE == SRCTYPE
     ASSERT(s && d);                                     // Assume contig bufs
+    const int nchannels = dst.nchannels();
     d += roi.ybegin * dst.spec().width * nchannels;     // Top of dst ROI
     const size_t ystride = src.spec().width * nchannels;// Scanline offset
     s += 2 * roi.ybegin * ystride;                      // Top of src ROI
@@ -333,17 +328,8 @@ resize_block_2pass (ImageBuf &dst, const ImageBuf &src, ROI roi, bool allow_shif
     // Run through destination rows, doing the two-pass bilerp filter
     const size_t dw = roi.width(), dh = roi.height();   // Loop invariants
     const size_t sw = dw * 2;                           // Handle odd res
-    for (size_t y = 0; y < dh; ++y) {                   // For each dst ROI row
-        halve_scanline<SRCTYPE>(s, nchannels, sw, &S0[0]);
-        s += ystride;
-        halve_scanline<SRCTYPE>(s, nchannels, sw, &S1[0]);
-        s += ystride;
-        const float *s0 = &S0[0], *s1 = &S1[0];
-        for (size_t x = 0; x < dw; ++x) {               // For each dst ROI col
-            for (int i = 0; i < nchannels; ++i, ++s0, ++s1, ++d)
-                *d = (SRCTYPE) (0.5f * (*s0 + *s1));   // Average vertically
-        }
-    }
+    for (size_t y = 0; y < dh; ++y, s += 2*ystride, d += ystride/2)
+        halve_scanline4<SRCTYPE>(s, nchannels, sw, ystride, d);
     
     return true;
 }
@@ -369,7 +355,7 @@ resize_block (ImageBuf &dst, const ImageBuf &src, ROI roi, bool envlatlmode,
         srcspec.x == 0 && srcspec.y == 0) {
         // If all these conditions are met, we have a special case that
         // can be more highly optimized.
-        OIIO_DISPATCH_TYPES("resize_block_2pass", resize_block_2pass,
+        OIIO_DISPATCH_TYPES("resize_block4", resize_block4,
                             srcspec.format, dst, src, roi, allow_shift);
     }
 

@@ -81,11 +81,13 @@ private:
     int m_planarconfig;
     Timer m_checkpointTimer;
     int m_checkpointItems;
+    bool m_predicted;
 
     // Initialize private members to pre-opened state
     void init (void) {
         m_tif = NULL;
         m_checkpointItems = 0;
+        m_predicted = false;
     }
 
     // Convert planar contiguous to planar separate data format
@@ -350,6 +352,7 @@ TIFFOutput::put_parameter (const std::string &name, TypeDesc type,
         TIFFSetField (m_tif, TIFFTAG_COMPRESSION, compress);
         // Use predictor when using compression
         if (compress == COMPRESSION_LZW || compress == COMPRESSION_ADOBE_DEFLATE) {
+            m_predicted = true;
             if (m_spec.format == TypeDesc::FLOAT || m_spec.format == TypeDesc::DOUBLE || m_spec.format == TypeDesc::HALF) {
                 TIFFSetField (m_tif, TIFFTAG_PREDICTOR, PREDICTOR_FLOATINGPOINT);
                 // N.B. Very old versions of libtiff did not support this
@@ -390,6 +393,8 @@ TIFFOutput::put_parameter (const std::string &name, TypeDesc type,
     }
     if (Strutil::iequals(name, "tiff:Predictor") && type == TypeDesc::INT) {
         TIFFSetField (m_tif, TIFFTAG_PREDICTOR, *(int *)data);
+        if (*(int *)data)
+            m_predicted = true;
         return true;
     }
     if (Strutil::iequals(name, "ResolutionUnit") && type == TypeDesc::STRING) {
@@ -517,7 +522,7 @@ TIFFOutput::write_scanline (int y, int z, TypeDesc format,
         // No contig->separate is necessary.  But we still use scratch
         // space since TIFFWriteScanline is destructive when
         // TIFFTAG_PREDICTOR is used.
-        if (data == origdata) {
+        if (data == origdata && m_predicted) {
             m_scratch.assign ((unsigned char *)data,
                               (unsigned char *)data+m_spec.scanline_bytes());
             data = &m_scratch[0];
@@ -585,7 +590,7 @@ TIFFOutput::write_tile (int x, int y, int z,
         // No contig->separate is necessary.  But we still use scratch
         // space since TIFFWriteTile is destructive when
         // TIFFTAG_PREDICTOR is used.
-        if (data == origdata) {
+        if (data == origdata && m_predicted) {
             m_scratch.assign ((unsigned char *)data,
                               (unsigned char *)data + m_spec.tile_bytes());
             data = &m_scratch[0];
