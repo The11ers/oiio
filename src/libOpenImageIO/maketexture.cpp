@@ -618,10 +618,7 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup,
         return false;
     
     const ImageSpec &spec (buf.spec());
-    bool tile_sizes_match = spec.tile_width == out->spec().tile_width &&
-                            spec.tile_height == out->spec().tile_height &&
-                            spec.tile_depth == out->spec().tile_depth;
-    if (!spec.tile_width || !out->supports ("tiles") || !tile_sizes_match)
+    if (!spec.tile_width || !out->supports ("tiles"))
         return false;
     
     bool native = (spec.format == TypeDesc::UNKNOWN);
@@ -638,7 +635,12 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup,
                        ceilf(spec.height / float(spec.tile_height)) *
                        ceilf(spec.width  / float(spec.tile_width));
 
+    std::vector<char> tbuf;
     ImageCache &ic(*buf.imagecache());
+    const bool tile_sizes_match = spec.tile_width == out->spec().tile_width &&
+                                  spec.tile_height == out->spec().tile_height &&
+                                  spec.tile_depth == out->spec().tile_depth;
+
     for (int z = 0, i = 0;  z < spec.depth;  z += spec.tile_depth) {
         for (int y = 0;  y < spec.height;  y += spec.tile_height) {
             for (int x = 0; x < spec.width; x += spec.tile_width, ++i) {
@@ -650,6 +652,19 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup,
                 }
                 TypeDesc format;
                 const void *d = buf.imagecache()->tile_pixels (tile, format);
+                if (!tile_sizes_match) {
+                    // Resize "partial" tiles into full tiles for TIFF
+                    tbuf.resize(out->spec().tile_bytes());
+                    OIIO::copy_image (spec.nchannels,
+                                      std::min (spec.width-x, out->spec().tile_width),
+                                      std::min (spec.height-y, out->spec().tile_height),
+                                      std::min (spec.depth-z, out->spec().tile_height),
+                                      d, pixel_bytes, xstride, ystride, zstride,
+                                      &tbuf[0], pixel_bytes,
+                                      pixel_bytes * out->spec().tile_width,
+                                      pixel_bytes * out->spec().tile_pixels());
+                    d = &tbuf[0];
+                }
                 DASSERT(format == out->spec().format);
                 ok &= out->write_tile (x, y, z, format, d);
                 if (dup) {
@@ -787,6 +802,9 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                     generator.set_prev_level(lvlbuf, miplevel);
                 small->init_spec(mipcache, 0, ++miplevel);
                 smallspec = small->spec();
+                smallspec.tile_width = outspec.tile_width;
+                smallspec.tile_height = outspec.tile_height;
+                smallspec.tile_depth = outspec.tile_depth;
             } else if (mipimages.size()) {
                 // Special case -- the user specified a custom MIP level
                 small->reset (mipimages[0]);
@@ -887,8 +905,8 @@ write_mipmap (ImageBufAlgo::MakeTextureMode mode,
                 dupspec.height = smallspec.height;
                 dupspec.full_width = smallspec.full_width;
                 dupspec.full_height = smallspec.full_height;
-                dupspec.tile_width = smallspec.tile_width;
-                dupspec.tile_height = smallspec.tile_height;
+                dupspec.tile_width = outspec_template.tile_width;
+                dupspec.tile_height = outspec_template.tile_height;
                 if (! dup->open(lvlname.c_str(), dupspec))
                     return false;
             } else {
