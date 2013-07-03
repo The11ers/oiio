@@ -627,7 +627,7 @@ write_tiled_dup (ImageBuf &buf, ImageOutput *out, ImageOutput *dup,
     stride_t xstride = pixel_bytes;
     stride_t ystride = AutoStride, zstride = AutoStride;    // Assume autostride
     spec.auto_stride (xstride, ystride, zstride, spec.format,
-                        spec.nchannels, spec.width, spec.height);
+                        spec.nchannels, spec.tile_width, spec.tile_height);
     
     bool ok = true;
     
